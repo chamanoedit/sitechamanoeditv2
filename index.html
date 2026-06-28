@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHAMANOEDIT — Transforme Pregações em Cortes Virais</title>
+  <meta name="description" content="Curso completo de edição de vídeos de pregação, do zero ao avançado. Domine o Premiere, crie cortes virais e leve o Evangelho às nações com o método CHAMA." />
+  <meta name="theme-color" content="#0A0A0C" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="shortcut icon" type="image/png" href="assets/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/favicon-180.png" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="CHAMANOEDIT — Transforme Pregações em Cortes Virais" />
+  <meta property="og:description" content="O método que tira sua edição do amadorismo e te posiciona como editor referência no universo cristão." />
+  <meta property="og:locale" content="pt_BR" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind (Play CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink:   '#0A0A0C',
+            ink2:  '#101013',
+            ember: '#FF6A1A',
+            flame: '#E11D2A',
+            gold:  '#FFB020',
+            cream: '#F4F2EE',
+            smoke: '#9A9AA2',
+          },
+          fontFamily: {
+            sans:    ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            display: ['Sora', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            poster:  ['Anton', 'Impact', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    :root {
+      --bg: #0A0A0C;
+      --fire: linear-gradient(92deg, #FFB020 0%, #FF6A1A 45%, #E11D2A 100%);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: var(--bg);
+      color: #F4F2EE;
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    ::selection { background: rgba(255,106,26,.32); color: #fff; }
+
+    /* Cinematic ambient glows */
+    .ambient::before,
+    .ambient::after {
+      content: "";
+      position: absolute;
+      border-radius: 9999px;
+      filter: blur(90px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .ambient::before {
+      width: 46rem; height: 46rem;
+      top: -16rem; right: -12rem;
+      background: radial-gradient(circle, rgba(255,106,26,.28), transparent 65%);
+    }
+    .ambient::after {
+      width: 40rem; height: 40rem;
+      bottom: -18rem; left: -14rem;
+      background: radial-gradient(circle, rgba(225,29,42,.20), transparent 65%);
+    }
+
+    /* Film grain overlay */
+    .grain {
+      position: fixed; inset: 0; z-index: 60; pointer-events: none;
+      opacity: .05; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* Fire gradient text */
+    .fire-text {
+      background: var(--fire);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+    }
+
+    /* Buttons */
+    .btn-fire {
+      background: var(--fire);
+      box-shadow: 0 10px 30px -8px rgba(255,106,26,.6), inset 0 1px 0 rgba(255,255,255,.25);
+      transition: transform .2s ease, box-shadow .25s ease, filter .25s ease;
+    }
+    .btn-fire:hover { transform: translateY(-2px); box-shadow: 0 18px 44px -10px rgba(255,106,26,.75); filter: brightness(1.05); }
+    .btn-fire:active { transform: translateY(0); }
+
+    .card {
+      background: rgba(255,255,255,.025);
+      border: 1px solid rgba(255,255,255,.08);
+      transition: transform .3s ease, border-color .3s ease, background-color .3s ease, box-shadow .3s ease;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255,106,26,.45);
+      background: rgba(255,106,26,.04);
+      box-shadow: 0 24px 60px -28px rgba(255,106,26,.55);
+    }
+
+    /* Reveal on scroll */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); will-change: opacity, transform; }
+    .reveal.is-visible { opacity: 1; transform: none; }
+
+    /* Marquee */
+    .marquee { display: flex; width: max-content; animation: scrollx 38s linear infinite; }
+    .marquee:hover { animation-play-state: paused; }
+    @keyframes scrollx { to { transform: translateX(-50%); } }
+
+    /* Hero NLE timeline */
+    .clip { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.10); }
+    .playhead { animation: play 7s linear infinite; }
+    @keyframes play { 0% { left: 2%; } 100% { left: 98%; } }
+
+    /* Accordion */
+    .acc-body { max-height: 0; overflow: hidden; transition: max-height .4s ease; }
+
+    /* Slow pulse for badges */
+    .pulse-soft { animation: pulseSoft 3.2s ease-in-out infinite; }
+    @keyframes pulseSoft { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+
+    .hairline { border-color: rgba(255,255,255,.08); }
+    .grid-dots {
+      background-image: radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+
+    /* VSL floating mini-player (fixa no canto ao rolar a página) */
+    .vsl-floating {
+      position: fixed !important;
+      bottom: 1rem; left: 1rem; right: auto;
+      width: min(340px, 78vw) !important;
+      z-index: 45;
+      box-shadow: 0 24px 70px -18px rgba(0,0,0,.85);
+      animation: vslPop .3s cubic-bezier(.16,1,.3,1);
+    }
+    @media (min-width: 640px) { .vsl-floating { bottom: 1.25rem; left: 1.25rem; } }
+    @keyframes vslPop { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+      .marquee, .playhead, .pulse-soft { animation: none !important; }
+      .card:hover, .btn-fire:hover { transform: none; }
+      * { scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+
+<body class="font-sans antialiased">
+
+  <!-- ===== SVG ICON SPRITE ===== -->
+  <svg width="0" height="0" class="hidden" aria-hidden="true">
+    <defs>
+      <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+      <symbol id="i-film" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/></symbol>
+      <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.94 14.06A2 2 0 0 0 8.5 12.6L2.4 11a.5.5 0 0 1 0-.96l6.1-1.6A2 2 0 0 0 9.94 7L11.5.9a.5.5 0 0 1 .96 0L14.06 7a2 2 0 0 0 1.44 1.44l6.1 1.6a.5.5 0 0 1 0 .96l-6.1 1.6a2 2 0 0 0-1.44 1.45L12.46 19.1a.5.5 0 0 1-.96 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+      <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+      <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M11.5 2.3a.55.55 0 0 1 1 0l2.3 4.66a.55.55 0 0 0 .41.3l5.15.75a.55.55 0 0 1 .3.94l-3.72 3.63a.55.55 0 0 0-.16.49l.88 5.12a.55.55 0 0 1-.8.58l-4.6-2.42a.55.55 0 0 0-.52 0l-4.6 2.42a.55.55 0 0 1-.8-.58l.88-5.12a.55.55 0 0 0-.16-.49L3.04 9.94a.55.55 0 0 1 .3-.94l5.15-.75a.55.55 0 0 0 .41-.3z"/></symbol>
+      <symbol id="i-wa" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.47-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37s-1.04 1.02-1.04 2.48 1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.81 11.81 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.9c0 2.09.55 4.14 1.59 5.94L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.69 1.45h.01c6.55 0 11.89-5.34 11.89-11.9 0-3.18-1.24-6.16-3.49-8.41"/></symbol>
+      <symbol id="i-smiley" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20"/><rect x="15.5" y="16" width="5" height="6" rx="1.2" fill="currentColor" stroke="none"/><rect x="27.5" y="16" width="5" height="6" rx="1.2" fill="currentColor" stroke="none"/><path d="M15 28a9.5 8 0 0 0 18 0"/></symbol>
+      <symbol id="i-bomb" viewBox="0 0 24 24"><circle cx="11" cy="13" r="9"/><path d="M14.35 4.65 16.3 2.7a2.41 2.41 0 0 1 3.4 0l1.6 1.6a2.4 2.4 0 0 1 0 3.4l-1.95 1.95"/><path d="m22 2-1.5 1.5"/></symbol>
+      <symbol id="i-burst" viewBox="0 0 24 24"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M16.9 16.9l2.2 2.2M19.1 4.9l-2.1 2.1M7 16.9l-2.1 2.2"/><circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-youtube" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M23.5 6.5a3 3 0 0 0-2.1-2.1C19.5 3.9 12 3.9 12 3.9s-7.5 0-9.4.5A3 3 0 0 0 .5 6.5 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.5 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.5zM9.6 15.5v-7l6.3 3.5z"/></symbol>
+      <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ===== NAVBAR ===== -->
+  <header id="nav" class="fixed inset-x-0 top-0 z-50 transition-all duration-300">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div id="navbar" class="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-ink/40 px-4 py-3 backdrop-blur-md transition-all duration-300 sm:px-5">
+        <a href="#topo" class="flex items-center gap-2.5 font-display text-lg font-extrabold tracking-tight">
+          <img src="assets/logo-chama.png" alt="CHAMANOEDIT" class="h-9 w-9 rounded-lg" />
+          <span>CHAMA<span class="fire-text">NOEDIT</span></span>
+        </a>
+
+        <nav class="hidden items-center gap-7 text-sm font-medium text-smoke lg:flex">
+          <a href="#metodo" class="transition-colors hover:text-cream">Método</a>
+          <a href="#conteudo" class="transition-colors hover:text-cream">Conteúdo</a>
+          <a href="#provas" class="transition-colors hover:text-cream">Provas</a>
+          <a href="#autor" class="transition-colors hover:text-cream">Mentor</a>
+          <a href="#faq" class="transition-colors hover:text-cream">FAQ</a>
+        </nav>
+
+        <div class="flex items-center gap-2">
+          <a data-buy="main" href="#oferta" class="btn-fire hidden cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold text-ink sm:inline-flex">Garantir vaga</a>
+          <button id="menuBtn" aria-label="Abrir menu" aria-expanded="false" class="grid h-10 w-10 cursor-pointer place-items-center rounded-xl border border-white/10 text-cream lg:hidden">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-menu"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile menu -->
+      <div id="mobileMenu" class="mt-2 hidden rounded-2xl border border-white/10 bg-ink2/95 p-3 backdrop-blur-md lg:hidden">
+        <a href="#metodo" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">Método</a>
+        <a href="#conteudo" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">Conteúdo</a>
+        <a href="#provas" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">Provas</a>
+        <a href="#autor" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">Mentor</a>
+        <a href="#faq" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">FAQ</a>
+        <a data-buy="main" href="#oferta" class="btn-fire mt-2 block cursor-pointer rounded-xl px-4 py-3 text-center font-semibold text-ink">Garantir minha vaga</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== HERO ===== -->
+  <section id="topo" class="ambient relative overflow-hidden pt-32 pb-20 sm:pt-40 lg:pt-44">
+    <div class="absolute inset-0 grid-dots opacity-40" aria-hidden="true"></div>
+    <div class="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <!-- Headline -->
+      <div class="reveal mx-auto max-w-4xl text-center">
+        <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-medium uppercase tracking-widest text-smoke">
+          <span class="h-1.5 w-1.5 rounded-full bg-ember pulse-soft"></span>
+          Sua mensagem alcançando nações
+        </span>
+
+        <h1 class="mt-6 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+          Transforme pregações em <span class="fire-text">cortes virais</span> e faça o Evangelho alcançar as nações
+        </h1>
+
+        <p class="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-smoke sm:text-lg">
+          O método que tira sua edição do amadorismo e te posiciona como <span class="text-cream">editor referência no universo cristão</span> — do zero ao avançado, dominando o Premiere como um profissional.
+        </p>
+      </div>
+
+      <!-- VSL (aula gratuita) -->
+      <div id="vslHolder" class="reveal mx-auto mt-10 max-w-4xl" style="transition-delay:.1s">
+        <button id="vslPlay" type="button" data-yt="tTfK3aslZos" data-start="0" class="group relative block aspect-video w-full cursor-pointer overflow-hidden rounded-3xl border border-white/10 shadow-2xl" aria-label="Assistir à aula gratuita">
+          <img src="https://i.ytimg.com/vi/tTfK3aslZos/maxresdefault.jpg" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/tTfK3aslZos/hqdefault.jpg'" alt="Aula gratuita CHAMANOEDIT — aprenda a editar cortes que explodem nas redes" loading="lazy" class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <span class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/40"></span>
+          <span class="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-md bg-flame px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white">
+            <span class="h-1.5 w-1.5 rounded-full bg-white pulse-soft"></span> Aula gratuita
+          </span>
+          <span class="absolute inset-0 grid place-items-center">
+            <span class="grid h-20 w-20 place-items-center rounded-full text-ink transition-transform duration-300 group-hover:scale-110" style="background:var(--fire); box-shadow:0 16px 50px -10px rgba(255,106,26,.75)">
+              <svg class="h-9 w-9 translate-x-1" fill="currentColor" stroke="none"><use href="#i-play"/></svg>
+            </span>
+          </span>
+          <span class="absolute inset-x-4 bottom-4 text-center font-display text-sm font-semibold text-cream sm:text-base">Assista à aula e descubra o método <span class="fire-text">CHAMA</span></span>
+        </button>
+      </div>
+
+      <!-- CTAs -->
+      <div class="reveal mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row" style="transition-delay:.14s">
+        <a data-buy="main" href="#oferta" class="btn-fire group inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-7 py-4 text-base font-semibold text-ink">
+          Quero transformar minhas edições
+          <svg class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow"/></svg>
+        </a>
+        <a href="#metodo" class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-7 py-4 text-base font-semibold text-cream transition-colors hover:bg-white/10">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-play"/></svg>
+          Ver o método
+        </a>
+      </div>
+
+      <!-- trust badges -->
+      <div class="reveal mt-9 flex flex-wrap items-center justify-center gap-x-7 gap-y-4 text-sm text-smoke">
+        <div class="flex items-center gap-2"><svg class="h-5 w-5 text-gold" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg>Garantia de 15 dias</div>
+        <div class="flex items-center gap-2"><svg class="h-5 w-5 text-ember" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-film"/></svg>16 módulos · +40 aulas</div>
+        <div class="flex items-center gap-2"><svg class="h-5 w-5 text-flame" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-monitor"/></svg>Adobe Premiere</div>
+      </div>
+
+      <!-- VIRALIZANDO + bullets -->
+      <div class="mt-20">
+        <h2 class="reveal text-center font-display text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl">
+          VIRALIZANDO <span class="fire-text">VÍDEOS CRISTÃOS</span> NA INTERNET
+        </h2>
+        <div class="mx-auto mt-10 grid max-w-5xl gap-3 sm:grid-cols-2 sm:gap-4">
+          <div class="card reveal flex items-center gap-4 rounded-2xl px-5 py-4"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-flame/10 text-flame"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bomb"/></svg></span><p class="text-sm text-cream">Porque você precisa viralizar seus cortes.</p></div>
+          <div class="card reveal flex items-center gap-4 rounded-2xl px-5 py-4"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-flame/10 text-flame"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bomb"/></svg></span><p class="text-sm text-cream">O padrão de edição usado em perfis cristãos que batem milhares (e milhões) de views.</p></div>
+          <div class="card reveal flex items-center gap-4 rounded-2xl px-5 py-4"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-flame/10 text-flame"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bomb"/></svg></span><p class="text-sm text-cream">Como criar cortes que prendem a atenção nos primeiros segundos.</p></div>
+          <div class="card reveal flex items-center gap-4 rounded-2xl px-5 py-4"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-flame/10 text-flame"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bomb"/></svg></span><p class="text-sm text-cream">Como sair do amadorismo e entrar no jogo de verdade da edição cristã.</p></div>
+          <div class="card reveal flex items-center gap-4 rounded-2xl px-5 py-4 sm:col-span-2" style="border-color:rgba(255,106,26,.35); background:rgba(255,106,26,.05)"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-ink" style="background:var(--fire)"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bomb"/></svg></span><p class="text-sm text-cream">Por que editar melhor <span class="font-semibold">não é suficiente</span> — e o que realmente faz um vídeo performar.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PORTFÓLIO ===== -->
+  <section id="portfolio" class="relative py-16 sm:py-24">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="reveal mx-auto max-w-2xl text-center">
+        <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">Portfólio</span>
+        <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">QUER EDITAR <span class="fire-text">NESSE NÍVEL?</span></h2>
+        <p class="mt-4 text-smoke">Alguns cortes reais que produzi. Clique em um vídeo para assistir.</p>
+      </div>
+      <div id="portfolioGrid" class="reveal mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4"></div>
+    </div>
+  </section>
+
+  <!-- ===== CLIENT MARQUEE ===== -->
+  <section class="relative border-y border-white/5 py-8">
+    <p class="mb-5 text-center text-xs font-medium uppercase tracking-[0.3em] text-smoke">Já editei para grandes nomes do meio cristão</p>
+    <div class="relative overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
+      <div class="marquee gap-3 px-3">
+        <!-- group 1 -->
+        <div class="flex shrink-0 gap-3">
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">David Miranda Neto</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Jefferson &amp; Suellen</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Filipe Levak</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Andre Fernandes</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Bianca Franco</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Thiago Lobos</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Dunamis Con</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Aprovadas Conf</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">OVERMISSION</span>
+        </div>
+        <!-- group 2 (duplicate for seamless loop) -->
+        <div class="flex shrink-0 gap-3" aria-hidden="true">
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">David Miranda Neto</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Jefferson &amp; Suellen</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Filipe Levak</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Andre Fernandes</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Bianca Franco</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Thiago Lobos</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Dunamis Con</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">Aprovadas Conf</span>
+          <span class="whitespace-nowrap rounded-full border border-white/10 px-5 py-2 text-sm text-smoke">OVERMISSION</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== STATS ===== -->
+  <section class="relative py-16 sm:py-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+        <div class="card reveal rounded-2xl p-6 text-center">
+          <div class="font-poster text-4xl tracking-wide sm:text-5xl"><span class="fire-text">+</span><span class="stat fire-text" data-target="100">0</span><span class="fire-text">Mi</span></div>
+          <p class="mt-2 text-sm text-smoke">Views alcançadas</p>
+        </div>
+        <div class="card reveal rounded-2xl p-6 text-center" style="transition-delay:.06s">
+          <div class="font-poster text-4xl tracking-wide sm:text-5xl"><span class="stat fire-text" data-target="16">0</span></div>
+          <p class="mt-2 text-sm text-smoke">Módulos completos</p>
+        </div>
+        <div class="card reveal rounded-2xl p-6 text-center" style="transition-delay:.12s">
+          <div class="font-poster text-4xl tracking-wide sm:text-5xl"><span class="stat fire-text" data-target="40">0</span><span class="fire-text">+</span></div>
+          <p class="mt-2 text-sm text-smoke">Aulas práticas</p>
+        </div>
+        <div class="card reveal rounded-2xl p-6 text-center" style="transition-delay:.18s">
+          <div class="font-poster text-4xl tracking-wide sm:text-5xl"><span class="stat fire-text" data-target="20">0</span><span class="fire-text">h</span></div>
+          <p class="mt-2 text-sm text-smoke">De conteúdo</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== BENEFITS ===== -->
+  <section class="relative py-16 sm:py-24">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="reveal mx-auto max-w-2xl text-center">
+        <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">O que você conquista</span>
+        <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Tudo o que você vai dominar com o CHAMANOEDIT</h2>
+        <p class="mt-4 text-smoke">Da inspiração à viralização — técnica, propósito e ferramentas reais para servir a igreja com excelência.</p>
+      </div>
+
+      <div class="mt-14 grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <!-- card -->
+        <article class="card reveal rounded-2xl p-7">
+          <div class="grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-ember/10 text-ember">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-film"/></svg>
+          </div>
+          <h3 class="mt-5 font-display text-lg font-semibold">Edição do zero ao avançado</h3>
+          <p class="mt-2 text-sm leading-relaxed text-smoke">Domine o Adobe Premiere como um profissional, com passo a passo detalhado mesmo se você nunca editou.</p>
+        </article>
+
+        <article class="card reveal rounded-2xl p-7" style="transition-delay:.06s">
+          <div class="grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-flame/10 text-flame">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-zap"/></svg>
+          </div>
+          <h3 class="mt-5 font-display text-lg font-semibold">Cortes prontos para viralizar</h3>
+          <p class="mt-2 text-sm leading-relaxed text-smoke">Técnicas exclusivas para transformar mensagens de pregação em cortes que impactam nas redes.</p>
+        </article>
+
+        <article class="card reveal rounded-2xl p-7" style="transition-delay:.12s">
+          <div class="grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-gold/10 text-gold">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-flame"/></svg>
+          </div>
+          <h3 class="mt-5 font-display text-lg font-semibold">O Evangelho em movimento</h3>
+          <p class="mt-2 text-sm leading-relaxed text-smoke">Alcance pessoas e sirva sua igreja com excelência, colocando sua arte no centro do propósito.</p>
+        </article>
+
+        <article class="card reveal rounded-2xl p-7">
+          <div class="grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-ember/10 text-ember">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-download"/></svg>
+          </div>
+          <h3 class="mt-5 font-display text-lg font-semibold">Packs completos inclusos</h3>
+          <p class="mt-2 text-sm leading-relaxed text-smoke">Presets, transições, fontes, trilhas e assets para elevar o nível dos seus vídeos imediatamente.</p>
+        </article>
+
+        <article class="card reveal rounded-2xl p-7" style="transition-delay:.06s">
+          <div class="grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-flame/10 text-flame">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg>
+          </div>
+          <h3 class="mt-5 font-display text-lg font-semibold">Comunidade VIP de editores</h3>
+          <p class="mt-2 text-sm leading-relaxed text-smoke">Faça parte de um grupo de editores cristãos, troque experiências e cresça junto com a rede.</p>
+        </article>
+
+        <article class="card reveal rounded-2xl p-7" style="transition-delay:.12s">
+          <div class="grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-gold/10 text-gold">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+          </div>
+          <h3 class="mt-5 font-display text-lg font-semibold">Módulo exclusivo de IA</h3>
+          <p class="mt-2 text-sm leading-relaxed text-smoke">Inteligência Artificial aplicada à edição cristã para acelerar seu fluxo e ampliar sua criatividade.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PAIN / DESIRE ===== -->
+  <section class="relative overflow-hidden py-16 sm:py-24">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <div class="card reveal relative overflow-hidden rounded-3xl p-8 sm:p-12">
+        <div class="absolute -right-20 -top-20 h-64 w-64 rounded-full" style="background:radial-gradient(circle,rgba(225,29,42,.18),transparent 70%)"></div>
+        <div class="relative">
+          <span class="text-xs font-semibold uppercase tracking-[0.3em] text-flame">Você se identifica?</span>
+          <h2 class="mt-4 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Dores que todo editor cristão conhece</h2>
+          <ul class="mt-8 grid gap-x-10 gap-y-4 sm:grid-cols-2">
+            <li class="flex gap-3 text-smoke"><svg class="mt-0.5 h-5 w-5 shrink-0 text-flame" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Cansado de vídeos que ninguém assiste, mesmo após horas editando?</li>
+            <li class="flex gap-3 text-smoke"><svg class="mt-0.5 h-5 w-5 shrink-0 text-flame" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Sente que está atrasado em relação aos editores que viralizam cortes?</li>
+            <li class="flex gap-3 text-smoke"><svg class="mt-0.5 h-5 w-5 shrink-0 text-flame" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Quer ser reconhecido, servir sua igreja e ainda viver de edição?</li>
+            <li class="flex gap-3 text-smoke"><svg class="mt-0.5 h-5 w-5 shrink-0 text-flame" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Tem medo de não conseguir captar a essência das mensagens?</li>
+            <li class="flex gap-3 text-smoke"><svg class="mt-0.5 h-5 w-5 shrink-0 text-flame" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Deseja ver sua arte impactando vidas e alcançando as nações?</li>
+            <li class="flex gap-3 text-smoke"><svg class="mt-0.5 h-5 w-5 shrink-0 text-flame" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Quer crescer, mas não sabe por onde começar?</li>
+          </ul>
+          <p class="mt-8 text-lg text-cream">O CHAMANOEDIT nasceu para tirar você dessas dúvidas e colocar sua edição <span class="fire-text font-semibold">no centro do propósito de Deus</span> para a sua vida.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MÉTODO CHAMA ===== -->
+  <section id="metodo" class="relative py-16 sm:py-24">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="reveal mx-auto max-w-2xl text-center">
+        <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">Como funciona na prática</span>
+        <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">O método <span class="fire-text">CHAMA</span></h2>
+        <p class="mt-4 text-smoke">Da inspiração à viralização, em três estágios que explodem o engajamento.</p>
+      </div>
+
+      <div class="mt-16 space-y-6 lg:space-y-8">
+        <!-- step 1 -->
+        <article class="card reveal grid items-center gap-6 rounded-3xl p-7 sm:p-10 lg:grid-cols-[auto_1fr]">
+          <div class="flex items-center gap-5">
+            <span class="font-poster text-7xl leading-none text-white/10 sm:text-8xl">01</span>
+            <div class="grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-ember/10 text-ember">
+              <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-flame"/></svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-poster text-2xl tracking-wide sm:text-3xl">CHAMA</h3>
+            <p class="mt-2 max-w-2xl text-smoke">Descubra como identificar a mensagem central da pregação, entender o que realmente conecta e quais cortes têm potencial de viralizar.</p>
+          </div>
+        </article>
+
+        <!-- step 2 -->
+        <article class="card reveal grid items-center gap-6 rounded-3xl p-7 sm:p-10 lg:grid-cols-[auto_1fr]" style="transition-delay:.06s">
+          <div class="flex items-center gap-5">
+            <span class="font-poster text-7xl leading-none text-white/10 sm:text-8xl">02</span>
+            <div class="grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-flame/10 text-flame">
+              <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-zap"/></svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-poster text-2xl tracking-wide sm:text-3xl">DINAMITE</h3>
+            <p class="mt-2 max-w-2xl text-smoke">Aprenda a usar elementos que explodem o engajamento: cortes precisos, zooms, legendas dinâmicas, efeitos sonoros, trilhas e artes que seguram a atenção.</p>
+          </div>
+        </article>
+
+        <!-- step 3 -->
+        <article class="card reveal grid items-center gap-6 rounded-3xl p-7 sm:p-10 lg:grid-cols-[auto_1fr]" style="transition-delay:.12s">
+          <div class="flex items-center gap-5">
+            <span class="font-poster text-7xl leading-none text-white/10 sm:text-8xl">03</span>
+            <div class="grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-gold/10 text-gold">
+              <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-mic"/></svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-poster text-2xl tracking-wide sm:text-3xl">ESTOPIM</h3>
+            <p class="mt-2 max-w-2xl text-smoke">Domine o storytelling e crie narrativas envolventes, conduzindo o espectador do início ao fim com técnicas de roteiro e oratória visual.</p>
+          </div>
+        </article>
+      </div>
+
+      <p class="reveal mt-10 text-center text-smoke">Você vai ver exemplos reais, editar junto comigo e aprender atalhos, macetes e segredos que só quem vive de edição cristã conhece.</p>
+    </div>
+  </section>
+
+  <!-- ===== FASES / NÍVEIS ===== -->
+  <section id="fases" class="relative py-14 sm:py-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="reveal mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">Os caminhos para a explosão</span>
+          <h2 class="mt-3 font-display text-2xl font-bold tracking-tight sm:text-3xl">As <span class="fire-text">5 fases</span> até o viral</h2>
+        </div>
+        <span class="hidden text-xs text-smoke sm:block">Do flopado ao +1M de views →</span>
+      </div>
+
+      <div class="reveal flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div class="snap-start shrink-0"><article class="card flex h-full w-[280px] flex-col rounded-2xl p-5 sm:w-[320px]">
+          <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-smoke"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-dot"/></svg></span><div><h3 class="font-poster text-base leading-none tracking-wide">Nível 1 · Flopado</h3><span class="text-[11px] font-semibold text-smoke">Até 1k views</span></div></div>
+          <p class="mt-3 text-xs italic text-cream/90">"Não sei editar, mas estou começando."</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Objetivo</p><p class="mt-1 text-xs text-smoke">Entender por que edição sozinha não gera viral.</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Atividades</p><div class="mt-1.5 flex flex-wrap gap-1.5"><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Quebra de crenças</span><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Método CHAMA</span><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Praticar</span></div>
+          <div class="mt-auto"><div class="mt-3 flex items-start gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2"><svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-[11px] text-smoke"><span class="font-semibold text-cream">Passa de nível:</span> identificar erros de mensagem e clareza.</p></div></div>
+        </article></div>
+        <div class="snap-start shrink-0"><article class="card flex h-full w-[280px] flex-col rounded-2xl p-5 sm:w-[320px]">
+          <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-ember/10 text-ember"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-flame"/></svg></span><div><h3 class="font-poster text-base leading-none tracking-wide">Nível 2 · Low</h3><span class="text-[11px] font-semibold text-ember">Até 10k views</span></div></div>
+          <p class="mt-3 text-xs italic text-cream/90">"Eu já comecei a editar e estou postando."</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Objetivo</p><p class="mt-1 text-xs text-smoke">Pensar como criador e criar cortes interessantes antes da edição.</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Atividades</p><div class="mt-1.5 flex flex-wrap gap-1.5"><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Definir público</span><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Criar ganchos</span><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Mensagens centrais</span></div>
+          <div class="mt-auto"><div class="mt-3 flex items-start gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2"><svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-[11px] text-smoke"><span class="font-semibold text-cream">Passa de nível:</span> criar cortes com CHAMA clara.</p></div></div>
+        </article></div>
+        <div class="snap-start shrink-0"><article class="card flex h-full w-[280px] flex-col rounded-2xl p-5 sm:w-[320px]">
+          <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-ember/15 text-ember"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bomb"/></svg></span><div><h3 class="font-poster text-base leading-none tracking-wide">Nível 3 · Pro</h3><span class="text-[11px] font-semibold text-ember">Até 100k views</span></div></div>
+          <p class="mt-3 text-xs italic text-cream/90">"Meu conteúdo tem estrutura e ritmo."</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Objetivo</p><p class="mt-1 text-xs text-smoke">Organizar a mensagem para retenção máxima.</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Atividades</p><div class="mt-1.5 flex flex-wrap gap-1.5"><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Estrutura viral</span><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Ritmo narrativo</span><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Legendas</span></div>
+          <div class="mt-auto"><div class="mt-3 flex items-start gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2"><svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-[11px] text-smoke"><span class="font-semibold text-cream">Passa de nível:</span> estrutura viral consistente e conteúdo validado.</p></div></div>
+        </article></div>
+        <div class="snap-start shrink-0"><article class="card flex h-full w-[280px] flex-col rounded-2xl p-5 sm:w-[320px]">
+          <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-flame/15 text-flame"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-zap"/></svg></span><div><h3 class="font-poster text-base leading-none tracking-wide">Nível 4 · Hook</h3><span class="text-[11px] font-semibold text-flame">Até 500k views</span></div></div>
+          <p class="mt-3 text-xs italic text-cream/90">"Minha edição potencializa tudo."</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Objetivo</p><p class="mt-1 text-xs text-smoke">Transformar bons cortes em cortes explosivos.</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Atividades</p><div class="mt-1.5 flex flex-wrap gap-1.5"><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Timing de corte</span><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">Gancho forte</span><span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-smoke">I.A. pontual</span></div>
+          <div class="mt-auto"><div class="mt-3 flex items-start gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2"><svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-flame" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-[11px] text-smoke"><span class="font-semibold text-cream">Passa de nível:</span> cortes com alta retenção e replay.</p></div></div>
+        </article></div>
+        <div class="snap-start shrink-0"><article class="card flex h-full w-[280px] flex-col rounded-2xl p-5 sm:w-[320px]" style="border-color:rgba(255,106,26,.4); background:rgba(255,106,26,.05)">
+          <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-ink" style="background:var(--fire)"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-burst"/></svg></span><div><h3 class="font-poster text-base leading-none tracking-wide fire-text">Nível 5 · Explosivo</h3><span class="text-[11px] font-bold text-ember">+1M views</span></div></div>
+          <p class="mt-3 text-xs italic text-cream">"Eu crio cortes que performam de forma previsível."</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Objetivo</p><p class="mt-1 text-xs text-smoke">Repetição de resultado — 2 ou 3 modelos validados.</p>
+          <p class="mt-3 text-[10px] font-semibold uppercase tracking-wider text-smoke">Atividades</p><div class="mt-1.5 flex flex-wrap gap-1.5"><span class="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-0.5 text-[11px] text-cream">Performance</span><span class="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-0.5 text-[11px] text-cream">Ajustes finos</span><span class="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-0.5 text-[11px] text-cream">Escala</span><span class="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-0.5 text-[11px] text-cream">Branding</span></div>
+          <div class="mt-auto"><div class="mt-3 flex items-start gap-2 rounded-lg border border-ember/30 bg-ember/10 px-3 py-2"><svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-[11px] text-cream"><span class="font-semibold">Domínio total:</span> milhares de views de forma consistente.</p></div></div>
+        </article></div>
+      </div>
+
+      <div class="reveal mt-7 text-center">
+        <a data-buy="main" href="#oferta" class="inline-flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-ember transition-colors hover:text-cream">
+          Quero subir de nível
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PARA QUEM ===== -->
+  <section class="relative py-16 sm:py-24">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="grid gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+        <div class="reveal">
+          <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">Para quem é</span>
+          <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Feito para quem quer servir e ser reconhecido pelo resultado</h2>
+          <p class="mt-4 text-smoke">Se você se vê em pelo menos um destes pontos, o CHAMANOEDIT foi desenhado para você.</p>
+          <a data-buy="main" href="#oferta" class="btn-fire mt-8 inline-flex cursor-pointer items-center gap-2 rounded-xl px-6 py-3.5 font-semibold text-ink">
+            Quero começar agora
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow"/></svg>
+          </a>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="card reveal flex gap-3 rounded-2xl p-5"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-sm text-smoke">Editores iniciantes que querem sair do amadorismo.</p></div>
+          <div class="card reveal flex gap-3 rounded-2xl p-5" style="transition-delay:.05s"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-sm text-smoke">Quem edita para igrejas ou ministérios voluntariamente.</p></div>
+          <div class="card reveal flex gap-3 rounded-2xl p-5" style="transition-delay:.1s"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-sm text-smoke">Quem vê a mídia como ferramenta de impacto e missão.</p></div>
+          <div class="card reveal flex gap-3 rounded-2xl p-5" style="transition-delay:.15s"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-sm text-smoke">Quem já edita, mas sente que seus vídeos não engajam.</p></div>
+          <div class="card reveal flex gap-3 rounded-2xl p-5" style="transition-delay:.2s"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-sm text-smoke">Quem quer trabalhar com grandes perfis e projetos relevantes.</p></div>
+          <div class="card reveal flex gap-3 rounded-2xl p-5" style="transition-delay:.25s"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg><p class="text-sm text-smoke">Quem quer dominar o Premiere e a viralização atual.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== O QUE É / CONTEÚDO ===== -->
+  <section id="conteudo" class="relative py-16 sm:py-24">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="reveal mx-auto max-w-2xl text-center">
+        <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">O que é o CHAMANOEDIT</span>
+        <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Um curso completo, do zero ao avançado</h2>
+        <p class="mt-4 text-smoke">Focado na edição de vídeos de pregação e conteúdos cristãos para redes sociais. Aulas gravadas, no seu ritmo, onde e quando quiser.</p>
+      </div>
+
+      <!-- includes grid -->
+      <div class="mt-14 grid gap-4 sm:gap-6 md:grid-cols-3">
+        <div class="card reveal rounded-2xl p-6">
+          <svg class="h-6 w-6 text-ember" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-film"/></svg>
+          <h3 class="mt-4 font-display font-semibold">16 módulos · +40 aulas</h3>
+          <p class="mt-1.5 text-sm text-smoke">Mais de 20 horas de conteúdo prático, assistível no seu ritmo.</p>
+        </div>
+        <div class="card reveal rounded-2xl p-6" style="transition-delay:.06s">
+          <svg class="h-6 w-6 text-flame" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-download"/></svg>
+          <h3 class="mt-4 font-display font-semibold">Packs exclusivos</h3>
+          <p class="mt-1.5 text-sm text-smoke">Presets, transições, fontes, trilhas, efeitos e assets para baixar.</p>
+        </div>
+        <div class="card reveal rounded-2xl p-6" style="transition-delay:.12s">
+          <svg class="h-6 w-6 text-gold" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+          <h3 class="mt-4 font-display font-semibold">Bônus de IA</h3>
+          <p class="mt-1.5 text-sm text-smoke">Módulo de Inteligência Artificial aplicada à edição cristã.</p>
+        </div>
+      </div>
+
+      <!-- modules carousel -->
+      <div class="reveal mt-12">
+        <div class="mb-4 flex items-end justify-between">
+          <h3 class="font-display text-lg font-semibold">Os módulos do curso</h3>
+          <span class="hidden text-xs text-smoke sm:block">Do início ao bônus de IA</span>
+        </div>
+        <div id="modulesTrack" class="space-y-3 sm:space-y-4">
+          <!-- 2 linhas de carrossel contínuo geradas via JS (superior p/ direita, inferior p/ esquerda) -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== COMPARISON ===== -->
+  <section class="relative py-16 sm:py-24">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <div class="reveal mx-auto max-w-2xl text-center">
+        <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">A diferença</span>
+        <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Antes e depois do CHAMANOEDIT</h2>
+      </div>
+
+      <div class="mt-12 grid gap-4 sm:grid-cols-2 sm:gap-6">
+        <!-- without -->
+        <div class="card reveal rounded-3xl p-7">
+          <div class="mb-5 inline-flex items-center gap-2 rounded-full border border-flame/30 bg-flame/10 px-4 py-1.5 text-sm font-semibold text-flame">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>
+            Sem CHAMANOEDIT
+          </div>
+          <ul class="space-y-3 text-sm text-smoke">
+            <li class="flex gap-3"><svg class="mt-0.5 h-4 w-4 shrink-0 text-flame/70" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Edição amadora, vídeos sem engajamento</li>
+            <li class="flex gap-3"><svg class="mt-0.5 h-4 w-4 shrink-0 text-flame/70" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Falta de técnica e criatividade</li>
+            <li class="flex gap-3"><svg class="mt-0.5 h-4 w-4 shrink-0 text-flame/70" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Dúvidas e nenhuma comunidade</li>
+            <li class="flex gap-3"><svg class="mt-0.5 h-4 w-4 shrink-0 text-flame/70" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>Vídeos sem propósito ou resultado</li>
+          </ul>
+        </div>
+
+        <!-- with -->
+        <div class="card reveal rounded-3xl p-7" style="border-color:rgba(255,106,26,.35); background:rgba(255,106,26,.05)">
+          <div class="mb-5 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold text-ink" style="background:var(--fire)">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>
+            Com CHAMANOEDIT
+          </div>
+          <ul class="space-y-3 text-sm text-cream">
+            <li class="flex gap-3"><svg class="mt-0.5 h-4 w-4 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Edição profissional, cortes virais</li>
+            <li class="flex gap-3"><svg class="mt-0.5 h-4 w-4 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Técnica, packs e criatividade aplicada</li>
+            <li class="flex gap-3"><svg class="mt-0.5 h-4 w-4 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Grupo VIP, networking e suporte</li>
+            <li class="flex gap-3"><svg class="mt-0.5 h-4 w-4 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Edição com propósito, alcance e renda</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PROVAS / TESTIMONIALS ===== -->
+  <section id="provas" class="relative py-16 sm:py-24">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="reveal mx-auto max-w-2xl text-center">
+        <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">Provas reais</span>
+        <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Edições dos alunos</h2>
+        <p class="mt-4 text-smoke">Cortes feitos por quem aplicou o método. Clique em um vídeo para assistir.</p>
+      </div>
+
+      <div id="editsTrack" class="reveal mt-10 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 sm:gap-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"></div>
+
+      <!-- mosaico dos prints de feedback reais -->
+      <div class="reveal mt-16">
+        <p class="mb-8 text-center text-xs font-semibold uppercase tracking-[0.3em] text-ember">Feedbacks no WhatsApp</p>
+        <div id="feedbacksMosaic" class="mx-auto max-w-5xl columns-2 [column-gap:0.75rem] sm:columns-3 sm:[column-gap:1rem]"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== AUTOR ===== -->
+  <section id="autor" class="relative py-16 sm:py-24">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="grid items-center gap-10 lg:grid-cols-[.85fr_1.15fr]">
+        <!-- photo placeholder -->
+        <div class="reveal">
+          <div class="card relative aspect-[4/5] overflow-hidden rounded-3xl" role="img" aria-label="Foto de Guilherme Guisolfi">
+            <div class="absolute inset-0" style="background:radial-gradient(100% 80% at 30% 20%, rgba(255,106,26,.2), transparent 60%)"></div>
+            <div class="absolute inset-0 grid place-items-center">
+              <div class="text-center">
+                <span class="grid h-20 w-20 mx-auto place-items-center rounded-full border border-white/10 bg-white/5 font-display text-2xl font-bold text-ember">GG</span>
+                <p class="mt-3 text-xs text-smoke">Foto do mentor</p>
+              </div>
+            </div>
+            <img src="assets/guilherme.jpg" alt="Guilherme Guisolfi" loading="lazy" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover" />
+            <div class="absolute bottom-4 left-4 z-10 rounded-xl border border-white/10 bg-black/55 px-4 py-2.5 backdrop-blur">
+              <p class="font-display text-base font-bold leading-none">Guilherme Guisolfi</p>
+              <p class="mt-1 text-xs text-smoke">Editor &amp; mentor do CHAMANOEDIT</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="reveal" style="transition-delay:.08s">
+          <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">Quem te ensina</span>
+          <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Por que confiar no CHAMANOEDIT?</h2>
+          <p class="mt-5 leading-relaxed text-smoke">Sou <span class="text-cream">Guilherme Guisolfi</span> — apaixonado por Jesus, casado com Lia, pai de dois meninos e editor cristão há mais de 8 anos. Sou pregador, palestrante de criatividade e acredito que <span class="text-cream">criatividade é treinável, não dom.</span></p>
+          <p class="mt-4 leading-relaxed text-smoke">Já editei para grandes nomes como David Miranda Neto, Jefferson &amp; Suellen, Filipe Levak, Andre Fernandes, Bianca Franco, Thiago Lobos e OVERMISSION, e servi eventos como Dunamis Con e Aprovadas Conf.</p>
+          <p class="mt-4 leading-relaxed text-smoke">Foram <span class="fire-text font-semibold">milhões de views</span> gerados para perfis cristãos usando o método que ensino aqui. Sei o que funciona na prática — e quero te ajudar a viver isso também.</p>
+
+          <div class="mt-7 grid grid-cols-3 gap-3">
+            <div class="card rounded-xl p-4 text-center"><div class="font-poster text-2xl fire-text">8+</div><p class="mt-1 text-xs text-smoke">Anos no nicho</p></div>
+            <div class="card rounded-xl p-4 text-center"><div class="font-poster text-2xl fire-text">10+</div><p class="mt-1 text-xs text-smoke">Grandes perfis</p></div>
+            <div class="card rounded-xl p-4 text-center"><div class="font-poster text-2xl fire-text">M+</div><p class="mt-1 text-xs text-smoke">Views gerados</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== OFERTA / PRICING ===== -->
+  <section id="oferta" class="relative scroll-mt-24 py-16 sm:py-24">
+    <div class="ambient absolute inset-0" aria-hidden="true"></div>
+    <div class="relative z-10 mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+      <div class="reveal mx-auto max-w-2xl text-center">
+        <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">Oferta exclusiva de lançamento</span>
+        <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Garanta seu acesso ao CHAMANOEDIT</h2>
+      </div>
+
+      <div class="card reveal relative mt-10 overflow-hidden rounded-3xl p-7 sm:p-10" style="border-color:rgba(255,106,26,.35)">
+        <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full" style="background:radial-gradient(circle,rgba(255,106,26,.22),transparent 70%)"></div>
+        <div class="relative">
+          <div class="flex flex-col items-center text-center">
+            <span class="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-gold">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-flame"/></svg>
+              1 ano de acesso
+            </span>
+            <p class="mt-6 text-sm text-smoke">Valor real <span class="line-through">R$ 2.500+</span></p>
+            <div class="mt-1 flex items-end justify-center gap-2">
+              <span class="font-poster text-6xl fire-text sm:text-7xl">R$847</span>
+            </div>
+            <p class="mt-2 text-smoke">à vista ou em até <span class="font-semibold text-cream">12x de R$ 84,70</span></p>
+
+            <a data-buy="checkout" href="#" class="btn-fire group mt-8 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-8 py-4.5 text-lg font-bold text-ink sm:w-auto" style="padding-top:1rem;padding-bottom:1rem">
+              Quero garantir minha vaga
+              <svg class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow"/></svg>
+            </a>
+            <p class="mt-3 flex items-center gap-2 text-xs text-smoke">
+              <svg class="h-4 w-4 text-gold" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg>
+              Compra segura via Hotmart · Acesso imediato por e-mail
+            </p>
+          </div>
+
+          <hr class="my-8 hairline" />
+
+          <p class="mb-4 text-center text-sm font-semibold uppercase tracking-wider text-smoke">Ao se inscrever você recebe</p>
+          <ul class="grid gap-3 sm:grid-cols-2">
+            <li class="flex gap-3 text-sm text-cream"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Curso completo (16 módulos, +40 aulas, +20h)</li>
+            <li class="flex gap-3 text-sm text-cream"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Basic Pack Presets (+10 presets pro)</li>
+            <li class="flex gap-3 text-sm text-cream"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Pack de Transições dinâmicas</li>
+            <li class="flex gap-3 text-sm text-cream"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Pack de Fontes para legendas</li>
+            <li class="flex gap-3 text-sm text-cream"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Pack de Assets: trilhas, SFX e molduras</li>
+            <li class="flex gap-3 text-sm text-cream"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Módulo bônus de Inteligência Artificial</li>
+            <li class="flex gap-3 text-sm text-cream"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Acesso ao grupo VIP de alunos</li>
+            <li class="flex gap-3 text-sm text-cream"><svg class="mt-0.5 h-5 w-5 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Material para download + Certificado</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- guarantee -->
+      <div class="card reveal mt-6 flex flex-col items-center gap-4 rounded-3xl p-7 text-center sm:flex-row sm:text-left">
+        <div class="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
+          <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg>
+        </div>
+        <div>
+          <h3 class="font-display text-lg font-semibold">Garantia incondicional de 15 dias</h3>
+          <p class="mt-1 text-sm text-smoke">Teste sem risco. Se não sentir evolução real, basta um e-mail e devolvo todo o seu dinheiro, sem perguntas. Simples assim.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PACK (CHAMAPRO) ===== -->
+  <section id="pack" class="relative scroll-mt-24 py-16 sm:py-24">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div class="grid items-center gap-10 lg:grid-cols-2">
+        <!-- copy -->
+        <div class="reveal">
+          <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">Bônus à parte</span>
+          <h2 class="mt-4 font-display text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">Aumente o nível dos seus edits com o <span class="fire-text">ChamaPro</span></h2>
+          <p class="mt-4 text-smoke">Pack profissional de <span class="text-cream">presets nativos do Adobe Premiere Pro</span>. Não precisa de After Effects, não precisa saber animar: <span class="text-cream">arrastou, soltou e tá pronto.</span></p>
+
+          <div class="mt-6 flex flex-wrap gap-2">
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-ember/30 bg-ember/10 px-3 py-1 text-xs font-semibold text-ember">+100 presets</span>
+            <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-smoke">Áudio</span>
+            <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-smoke">Movimento</span>
+            <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-smoke">Camera move</span>
+            <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-smoke">Text FX</span>
+            <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-smoke">Pro effects</span>
+          </div>
+
+          <ul class="mt-6 grid gap-2.5 sm:grid-cols-2">
+            <li class="flex gap-2.5 text-sm text-cream"><svg class="mt-0.5 h-4 w-4 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Presets de texto animado</li>
+            <li class="flex gap-2.5 text-sm text-cream"><svg class="mt-0.5 h-4 w-4 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Elementos visuais (PNG)</li>
+            <li class="flex gap-2.5 text-sm text-cream"><svg class="mt-0.5 h-4 w-4 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Configuração de áudio</li>
+            <li class="flex gap-2.5 text-sm text-cream"><svg class="mt-0.5 h-4 w-4 shrink-0 text-ember" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>PDF + vídeo de instalação</li>
+          </ul>
+
+          <div class="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+            <div>
+              <p class="text-xs text-smoke">por apenas</p>
+              <div class="font-poster text-4xl fire-text sm:text-5xl">R$197</div>
+            </div>
+            <a data-buy="pack" href="#" class="btn-fire group inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-7 py-4 text-base font-semibold text-ink">
+              Quero o ChamaPro
+              <svg class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow"/></svg>
+            </a>
+          </div>
+          <p class="mt-3 text-xs leading-relaxed text-smoke/80">Compatível com o Premiere Pro, nativo. Ferramenta de apoio ao seu processo criativo — sem promessa de desempenho ou viralização.</p>
+        </div>
+
+        <!-- gif / demo (lazy: só carrega quando entra na tela) -->
+        <div class="reveal" style="transition-delay:.08s">
+          <div class="card relative aspect-video w-full overflow-hidden rounded-3xl" role="img" aria-label="Demonstração dos presets ChamaPro no Premiere Pro">
+            <div class="absolute inset-0 grid place-items-center text-center">
+              <svg class="h-10 w-10 text-white/15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-film"/></svg>
+            </div>
+            <video id="packVideo" data-src="assets/chamapack.mp4" loop muted playsinline preload="none" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover"></video>
+            <span class="absolute left-3 top-3 rounded-md bg-black/55 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cream">Premiere Pro</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FAQ ===== -->
+  <section id="faq" class="relative py-16 sm:py-24">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+      <div class="reveal text-center">
+        <span class="text-xs font-semibold uppercase tracking-[0.3em] text-ember">Dúvidas frequentes</span>
+        <h2 class="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">É comum ter dúvidas antes de entrar</h2>
+      </div>
+
+      <div class="mt-12 space-y-3" id="faqList">
+        <!-- item -->
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">Preciso ter experiência com edição?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">Não! O curso vai do zero ao avançado, com passo a passo detalhado para quem nunca abriu o Premiere.</p></div>
+        </div>
+
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">Quais softwares eu preciso?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">Adobe Premiere Pro. Indico versões e opções gratuitas nas aulas. Um PC básico já roda o Premiere com as dicas que dou.</p></div>
+        </div>
+
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">Funciona pelo celular?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">O foco é a edição profissional no computador (Premiere), mas você pode assistir às aulas pelo celular, onde e quando quiser.</p></div>
+        </div>
+
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">Tenho acesso aos arquivos usados nas aulas?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">Sim, todo o material está disponível para download — presets, transições, fontes, trilhas e assets.</p></div>
+        </div>
+
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">Por quanto tempo terei acesso?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">Você tem acesso por 1 ano (12 meses) a partir da compra, para assistir no seu ritmo. Todas as atualizações lançadas nesse período entram para você também.</p></div>
+        </div>
+
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">Tem certificado?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">Sim, ao concluir o curso você recebe um certificado digital de conclusão.</p></div>
+        </div>
+
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">Como recebo o acesso após a compra?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">Imediatamente por e-mail, com login e senha de acesso à plataforma.</p></div>
+        </div>
+
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">Tem garantia?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">Sim, 15 dias incondicionais. Se achar que não é para você, devolvo 100% do valor.</p></div>
+        </div>
+
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">O curso ensina sobre Inteligência Artificial?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">Sim, há um módulo específico de IA aplicada à edição cristã, para acelerar seu fluxo de trabalho.</p></div>
+        </div>
+
+        <div class="card reveal overflow-hidden rounded-2xl">
+          <button class="acc-trigger flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left" aria-expanded="false">
+            <span class="font-display font-semibold">Depois de quanto tempo vejo resultados?</span>
+            <svg class="acc-icon h-5 w-5 shrink-0 text-ember transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="acc-body"><p class="px-6 pb-5 text-sm text-smoke">Alunos relatam mudanças já nas primeiras semanas de aplicação do método!</p></div>
+        </div>
+      </div>
+
+      <p class="reveal mt-8 text-center text-sm text-smoke">Ainda com dúvidas? Fale com a equipe no
+        <a id="waInline" href="#" target="_blank" rel="noopener" class="font-semibold text-ember underline-offset-4 hover:underline">WhatsApp (55) 99634-3191</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== FINAL CTA ===== -->
+  <section class="relative overflow-hidden py-20 sm:py-28">
+    <div class="ambient absolute inset-0" aria-hidden="true"></div>
+    <div class="relative z-10 mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+      <div class="reveal">
+        <h2 class="font-display text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+          Coloque sua edição no centro do <span class="fire-text">propósito de Deus</span>
+        </h2>
+        <p class="mx-auto mt-5 max-w-xl text-smoke">Garanta sua vaga no CHAMANOEDIT e transforme suas edições em ferramentas de impacto para o Reino.</p>
+        <a data-buy="main" href="#" class="btn-fire group mt-9 inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-9 py-5 text-lg font-bold text-ink">
+          Quero ser um editor de resultado
+          <svg class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow"/></svg>
+        </a>
+        <p class="mt-4 text-xs text-smoke">R$847 à vista ou 12x de R$84,70 · Garantia de 15 dias · Acesso imediato</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="relative border-t border-white/5 py-12">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col items-center justify-between gap-6 sm:flex-row">
+        <a href="#topo" class="flex items-center gap-2.5 font-display text-lg font-extrabold tracking-tight">
+          <img src="assets/logo-chama.png" alt="CHAMANOEDIT" class="h-9 w-9 rounded-lg" />
+          <span>CHAMA<span class="fire-text">NOEDIT</span></span>
+        </a>
+        <p class="text-sm text-smoke">Sua mensagem alcançando nações.</p>
+        <a id="waFooter" href="#" target="_blank" rel="noopener" class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-cream transition-colors hover:bg-white/10">
+          <svg class="h-4 w-4 text-ember" fill="currentColor" stroke="none"><use href="#i-wa"/></svg>
+          Suporte no WhatsApp
+        </a>
+      </div>
+      <p class="mt-8 text-center text-xs text-smoke/70">© <span id="year"></span> CHAMANOEDIT · Guilherme Guisolfi. Todos os direitos reservados.</p>
+    </div>
+  </footer>
+
+  <!-- ===== VIDEO LIGHTBOX ===== -->
+  <div id="videoLightbox" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
+    <button data-close type="button" aria-label="Fechar vídeo" class="absolute right-4 top-4 grid h-11 w-11 cursor-pointer place-items-center rounded-full border border-white/20 bg-white/10 text-cream transition-colors hover:bg-white/20">
+      <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>
+    </button>
+    <div class="aspect-[9/16] h-[86vh] max-w-[92vw] overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
+      <iframe id="lbFrame" class="h-full w-full" src="" title="Vídeo CHAMANOEDIT" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <!-- ===== FLOATING WHATSAPP ===== -->
+  <a id="waFloat" href="#" target="_blank" rel="noopener" aria-label="Falar no WhatsApp"
+     class="fixed bottom-5 right-5 z-50 grid h-14 w-14 cursor-pointer place-items-center rounded-full text-white shadow-2xl transition-transform hover:scale-105"
+     style="background:#25D366; box-shadow:0 12px 32px -8px rgba(37,211,102,.6)">
+    <svg class="h-7 w-7" fill="currentColor" stroke="none"><use href="#i-wa"/></svg>
+  </a>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script>
+    // ===================================================================
+    //  CONFIGURAÇÃO RÁPIDA — edite apenas estas linhas
+    // ===================================================================
+    const CHECKOUT_URL = "https://pay.hotmart.com/S99563210F?checkoutMode=10&bid=1774837879021"; // Curso CHAMANOEDIT (carrinho principal)
+    const PACK_URL     = "https://pay.hotmart.com/K103405939L?off=0mq6sr93";                       // ChamaPro — Pack de Presets (R$197)
+    const WHATSAPP     = "5555996343191"; // DDI 55 + DDD 55 + número
+
+    // Vídeos de portfólio (seção "QUER EDITAR NESSE NÍVEL?").
+    // YouTube: { id: "ABC123", title: "Nome" }. Vimeo: { type:"vimeo", id:"123", title:"Nome", thumb:"assets/xxx.jpg" }.
+    const PORTFOLIO = [
+      { id: "ju0zu83ZnN0", title: "Teo Hayashi" },
+      { id: "HIOoLNYaPF4", title: "Valnice Milhomes" },
+      { id: "XBpJJpGRH74", title: "Luca Martini" },
+      { id: "RkK9FLlMVZU", title: "Bianca Franco" },
+      { type: "vimeo", id: "1204831291", title: "@chamadegui", thumb: "assets/port-chamadegui.jpg" },
+      { id: "mVvtRRUDADM", title: "Junia Hayashi" },
+      { id: "bF_79HvhnZo", title: "Filipe Levak" },
+      { id: "G-gy4DTbbCE", title: "David Miranda Neto" },
+    ];
+
+    // Edições dos alunos (carrossel na seção de provas). Vimeo + YouTube; thumb local em assets/aluno-XX.jpg.
+    const EDITS = [
+      { type: "vimeo", id: "1204831886", thumb: "assets/aluno-01.jpg" },
+      { type: "vimeo", id: "1204831887", thumb: "assets/aluno-02.jpg" },
+      { type: "vimeo", id: "1204831885", thumb: "assets/aluno-03.jpg" },
+      { type: "vimeo", id: "1204831884", thumb: "assets/aluno-04.jpg" },
+      { type: "vimeo", id: "1204831909", thumb: "assets/aluno-05.jpg" },
+      { type: "vimeo", id: "1204831910", thumb: "assets/aluno-06.jpg" },
+      { type: "vimeo", id: "1204831912", thumb: "assets/aluno-07.jpg" },
+      { type: "yt", id: "O6q6IcagV44", thumb: "assets/aluno-08.jpg" },
+      { type: "yt", id: "OaR-FyYHGxA", thumb: "assets/aluno-09.jpg" },
+    ];
+    // ===================================================================
+
+    (function () {
+      'use strict';
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // --- Buy buttons -> checkout (data-buy="main" | "pack")
+      const wireBuy = (selector, url) => {
+        document.querySelectorAll(selector).forEach((a) => {
+          if (url && url.indexOf('http') === 0) {
+            a.setAttribute('href', url);
+            a.setAttribute('target', '_blank');
+            a.setAttribute('rel', 'noopener');
+          } else if (a.getAttribute('href') === '#') {
+            a.setAttribute('href', '#oferta');
+          }
+        });
+      };
+      // Botões do curso espalhados pelo site → rolam até a seção da oferta completa
+      document.querySelectorAll('[data-buy="main"]').forEach((a) => {
+        a.setAttribute('href', '#oferta');
+        a.removeAttribute('target');
+        a.removeAttribute('rel');
+      });
+      // Apenas o botão DENTRO da oferta exclusiva → checkout Hotmart do curso
+      wireBuy('[data-buy="checkout"]', CHECKOUT_URL);
+      // Botão do pack (oferta própria) → checkout Hotmart do pack
+      wireBuy('[data-buy="pack"]', PACK_URL);
+
+      // --- WhatsApp links
+      const waUrl = 'https://wa.me/' + WHATSAPP;
+      ['waFloat', 'waFooter', 'waInline'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('href', waUrl);
+      });
+
+      // --- Year
+      const y = document.getElementById('year');
+      if (y) y.textContent = new Date().getFullYear();
+
+      // --- Navbar scroll state
+      const navbar = document.getElementById('navbar');
+      const onScroll = () => {
+        if (window.scrollY > 20) {
+          navbar.classList.add('bg-ink/80', 'shadow-lg', 'shadow-black/30');
+          navbar.classList.remove('bg-ink/40');
+        } else {
+          navbar.classList.remove('bg-ink/80', 'shadow-lg', 'shadow-black/30');
+          navbar.classList.add('bg-ink/40');
+        }
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+
+      // --- Mobile menu
+      const menuBtn = document.getElementById('menuBtn');
+      const mobileMenu = document.getElementById('mobileMenu');
+      menuBtn.addEventListener('click', () => {
+        const open = mobileMenu.classList.toggle('hidden') === false;
+        menuBtn.setAttribute('aria-expanded', String(open));
+      });
+      mobileMenu.querySelectorAll('a').forEach((a) =>
+        a.addEventListener('click', () => {
+          mobileMenu.classList.add('hidden');
+          menuBtn.setAttribute('aria-expanded', 'false');
+        })
+      );
+
+      // --- Reveal on scroll
+      const revealEls = document.querySelectorAll('.reveal');
+      if (reduceMotion || !('IntersectionObserver' in window)) {
+        revealEls.forEach((el) => el.classList.add('is-visible'));
+      } else {
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                io.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
+        );
+        revealEls.forEach((el) => io.observe(el));
+      }
+
+      // --- Count-up stats
+      const stats = document.querySelectorAll('.stat');
+      const runCount = (el) => {
+        const target = parseInt(el.dataset.target, 10) || 0;
+        if (reduceMotion) { el.textContent = target; return; }
+        const dur = 1400;
+        const start = performance.now();
+        const step = (now) => {
+          const p = Math.min((now - start) / dur, 1);
+          const eased = 1 - Math.pow(1 - p, 3);
+          el.textContent = Math.round(target * eased);
+          if (p < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      };
+      if ('IntersectionObserver' in window) {
+        const sObs = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) { runCount(entry.target); sObs.unobserve(entry.target); }
+            });
+          },
+          { threshold: 0.6 }
+        );
+        stats.forEach((el) => sObs.observe(el));
+      } else {
+        stats.forEach((el) => (el.textContent = el.dataset.target));
+      }
+
+      // --- FAQ accordion
+      document.querySelectorAll('.acc-trigger').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const body = btn.nextElementSibling;
+          const icon = btn.querySelector('.acc-icon');
+          const isOpen = btn.getAttribute('aria-expanded') === 'true';
+
+          // close others
+          document.querySelectorAll('.acc-trigger').forEach((other) => {
+            if (other !== btn) {
+              other.setAttribute('aria-expanded', 'false');
+              other.nextElementSibling.style.maxHeight = null;
+              const oi = other.querySelector('.acc-icon');
+              if (oi) oi.style.transform = '';
+            }
+          });
+
+          if (isOpen) {
+            btn.setAttribute('aria-expanded', 'false');
+            body.style.maxHeight = null;
+            icon.style.transform = '';
+          } else {
+            btn.setAttribute('aria-expanded', 'true');
+            body.style.maxHeight = body.scrollHeight + 'px';
+            icon.style.transform = 'rotate(180deg)';
+          }
+        });
+      });
+
+      // --- Video lightbox (YouTube + Vimeo) usado pelo portfólio e pelas edições dos alunos
+      const lb = document.getElementById('videoLightbox');
+      const lbFrame = document.getElementById('lbFrame');
+      const embedSrc = (type, id) => type === 'vimeo'
+        ? 'https://player.vimeo.com/video/' + id + '?autoplay=1&title=0&byline=0&portrait=0&dnt=1'
+        : 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0&modestbranding=1&playsinline=1';
+      const openVideo = (type, id) => {
+        if (!lb || !id) return;
+        lbFrame.src = embedSrc(type, id);
+        lb.classList.remove('hidden'); lb.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+      };
+      const closeVideo = () => {
+        if (!lb) return;
+        lbFrame.src = '';
+        lb.classList.add('hidden'); lb.classList.remove('flex');
+        document.body.style.overflow = '';
+      };
+      if (lb) {
+        lb.addEventListener('click', (e) => { if (e.target === lb || e.target.closest('[data-close]')) closeVideo(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeVideo(); });
+      }
+      // VSL: toca INLINE e, ao rolar pra fora, vira um mini-player flutuante no canto; volta a encaixar ao subir
+      const vsl = document.getElementById('vslPlay');
+      const vslHolder = document.getElementById('vslHolder');
+      let vio = null;
+      const buildVslPlayer = () => {
+        const start = vsl.dataset.start;
+        const wrap = document.createElement('div');
+        wrap.id = 'vslPlayer';
+        wrap.className = 'relative aspect-video w-full overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl';
+        const iframe = document.createElement('iframe');
+        iframe.src = 'https://www.youtube-nocookie.com/embed/' + vsl.dataset.yt + '?autoplay=1&rel=0&modestbranding=1&playsinline=1' + (start && +start > 0 ? '&start=' + start : '');
+        iframe.className = 'absolute inset-0 h-full w-full';
+        iframe.setAttribute('title', 'Aula CHAMANOEDIT');
+        iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+        iframe.setAttribute('allowfullscreen', '');
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.setAttribute('aria-label', 'Fechar vídeo');
+        close.className = 'vsl-close hidden absolute -top-2.5 -right-2.5 z-10 grid h-8 w-8 cursor-pointer place-items-center rounded-full border border-white/20 bg-ink text-cream shadow-lg';
+        close.innerHTML = '<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg>';
+        close.addEventListener('click', stopVsl);
+        wrap.appendChild(iframe);
+        wrap.appendChild(close);
+        return wrap;
+      };
+      function stopVsl() {
+        const wrap = document.getElementById('vslPlayer');
+        if (wrap) wrap.replaceWith(vsl);
+        if (vslHolder) vslHolder.style.height = '';
+        if (vio) { vio.disconnect(); vio = null; }
+      }
+      if (vsl && vslHolder) vsl.addEventListener('click', () => {
+        const wrap = buildVslPlayer();
+        vsl.replaceWith(wrap);
+        vio = new IntersectionObserver(([entry]) => {
+          const w = document.getElementById('vslPlayer');
+          if (!w) return;
+          const closeBtn = w.querySelector('.vsl-close');
+          if (entry.isIntersecting) {
+            w.classList.remove('vsl-floating');
+            if (closeBtn) closeBtn.classList.add('hidden');
+            vslHolder.style.height = '';
+          } else {
+            vslHolder.style.height = vslHolder.offsetHeight + 'px';
+            w.classList.add('vsl-floating');
+            if (closeBtn) closeBtn.classList.remove('hidden');
+          }
+        }, { threshold: 0, rootMargin: '-80px 0px 0px 0px' });
+        vio.observe(vslHolder);
+      });
+
+      // --- Card de vídeo reutilizável (portfólio + edições dos alunos)
+      const videoCard = (v, sizeCls) => {
+        const type = v.type || 'yt';
+        const thumb = v.thumb || (type === 'yt' && v.id ? 'https://i.ytimg.com/vi/' + v.id + '/hqdefault.jpg' : '');
+        const label = v.title ? '<span class="absolute inset-x-3 bottom-3 text-left text-sm font-semibold text-cream">' + v.title + '</span>' : '';
+        return '<button type="button" data-type="' + type + '" data-id="' + v.id + '" class="group card relative aspect-[9/16] ' + sizeCls + ' cursor-pointer overflow-hidden rounded-2xl" aria-label="Assistir ' + (v.title || 'edição') + '">' +
+          (thumb ? '<img src="' + thumb + '" alt="' + (v.title || 'Edição de aluno') + '" loading="lazy" class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />' : '') +
+          '<span class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent"></span>' +
+          '<span class="absolute inset-0 grid place-items-center"><span class="grid h-12 w-12 place-items-center rounded-full text-ink transition-transform duration-300 group-hover:scale-110" style="background:var(--fire)"><svg class="h-5 w-5" style="margin-left:2px" fill="currentColor" stroke="none"><use href="#i-play"/></svg></span></span>' +
+          label +
+          '</button>';
+      };
+      const bindCards = (root) => root && root.querySelectorAll('[data-id]').forEach((el) => el.addEventListener('click', () => openVideo(el.dataset.type, el.dataset.id)));
+
+      // Portfólio (grid)
+      const pGrid = document.getElementById('portfolioGrid');
+      if (pGrid && Array.isArray(PORTFOLIO)) {
+        pGrid.innerHTML = PORTFOLIO.map((v) => videoCard(v, 'w-full')).join('');
+        bindCards(pGrid);
+      }
+
+      // Edições dos alunos (carrossel)
+      const eTrack = document.getElementById('editsTrack');
+      if (eTrack && typeof EDITS !== 'undefined') {
+        eTrack.innerHTML = EDITS.map((v) => videoCard(v, 'w-[190px] shrink-0 snap-start sm:w-[230px]')).join('');
+        bindCards(eTrack);
+      }
+
+      // Mosaico dos prints de feedback (assets/prova-01..09.jpg)
+      const fMosaic = document.getElementById('feedbacksMosaic');
+      if (fMosaic) {
+        const PRINTS = 9;
+        let mh = '';
+        for (let i = 1; i <= PRINTS; i++) {
+          const n = String(i).padStart(2, '0');
+          mh += '<div class="mb-3 overflow-hidden rounded-2xl border border-white/10 [break-inside:avoid] sm:mb-4">' +
+            '<img src="assets/prova-' + n + '.jpg" alt="Feedback real de aluno do CHAMANOEDIT no WhatsApp" class="w-full" />' +
+            '</div>';
+        }
+        fMosaic.innerHTML = mh;
+      }
+
+      // --- Module covers em 2 linhas de carrossel contínuo (superior p/ direita, inferior p/ esquerda)
+      const mTrack = document.getElementById('modulesTrack');
+      if (mTrack) {
+        const MODULES = [
+          'Bem-vindo',
+          'Começo — torne-se um editor de resultados',
+          'Básico de Premiere',
+          'Hacks de edição',
+          'Inserções criativas',
+          'O melhor estilo de legendas',
+          'Aquele tchan que faltava',
+          'Seu feed mais bonito',
+          'Trabalhe como editor',
+          'Bônus: como usar I.A. nos edits',
+        ];
+        const cover = (t, i) => {
+          const n = String(i + 1).padStart(2, '0');
+          return '<div class="relative aspect-video w-52 shrink-0 overflow-hidden rounded-xl border border-white/10 sm:w-72" role="img" aria-label="Módulo: ' + t + '">' +
+            '<div class="absolute inset-0 grid place-items-center"><span class="font-poster text-2xl text-white/10">' + n + '</span></div>' +
+            '<img src="assets/modulo-' + n + '.jpg" alt="' + t + '" loading="lazy" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover" />' +
+            '</div>';
+        };
+        const top = MODULES.map(cover);                 // ordem normal
+        const bottom = MODULES.map(cover).reverse();     // invertida p/ variar
+        const row = (items, reverse) =>
+          '<div class="overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_5%,#000_95%,transparent)]">' +
+            '<div class="marquee gap-3" style="animation-duration:55s' + (reverse ? ';animation-direction:reverse' : '') + '">' +
+              items.join('') + items.join('') +
+            '</div>' +
+          '</div>';
+        mTrack.innerHTML = row(top, true) + row(bottom, false);
+      }
+      // --- Pack video (lazy: carrega/toca só quando visível, pausa fora da tela)
+      const packVideo = document.getElementById('packVideo');
+      if (packVideo && 'IntersectionObserver' in window && !reduceMotion) {
+        const pObs = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              if (!packVideo.src) packVideo.src = packVideo.dataset.src;
+              const pl = packVideo.play();
+              if (pl && pl.catch) pl.catch(() => {});
+            } else if (!packVideo.paused) {
+              packVideo.pause();
+            }
+          });
+        }, { threshold: 0.25 });
+        pObs.observe(packVideo);
+      } else if (packVideo) {
+        packVideo.src = packVideo.dataset.src;
+      }
+    })();
+  </script>
+</body>
+</html>
