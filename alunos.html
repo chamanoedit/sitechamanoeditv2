@@ -33,7 +33,6 @@
       padding: 2rem 1rem 4rem;
     }
 
-    /* grain overlay */
     body::before {
       content: '';
       position: fixed; inset: 0;
@@ -43,7 +42,6 @@
 
     .wrap { position: relative; z-index: 1; width: 100%; max-width: 520px; }
 
-    /* header */
     .header {
       display: flex; flex-direction: column; align-items: center;
       gap: 1rem; margin-bottom: 2.5rem; text-align: center;
@@ -57,7 +55,6 @@
     }
     .header p { color: var(--smoke); font-size: .9rem; }
 
-    /* card */
     .card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -77,22 +74,15 @@
       padding: .75rem 1rem; outline: none; transition: border-color .2s;
       font-family: inherit;
     }
-    input[type="text"]:focus, input[type="number"]:focus {
-      border-color: var(--fire);
-    }
-    input[type="text"]::placeholder, input[type="number"]::placeholder {
-      color: #444;
-    }
+    input[type="text"]:focus, input[type="number"]:focus { border-color: var(--fire); }
+    input[type="text"]::placeholder, input[type="number"]::placeholder { color: #444; }
 
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
-    /* drop zone */
     .dropzone {
       border: 2px dashed var(--border);
-      border-radius: .85rem;
-      padding: 2rem 1rem;
-      text-align: center;
-      cursor: pointer;
+      border-radius: .85rem; padding: 2rem 1rem;
+      text-align: center; cursor: pointer;
       transition: border-color .2s, background .2s;
       position: relative;
     }
@@ -108,20 +98,15 @@
       font-size: .82rem; color: var(--cream); word-break: break-all;
     }
 
-    /* progress */
-    .progress-wrap { display: none; margin-top: 1rem; }
-    .progress-bar {
-      height: 6px; border-radius: 99px;
-      background: var(--border); overflow: hidden;
-    }
+    .progress-wrap { display: none; margin-top: 1.25rem; }
+    .progress-bar { height: 8px; border-radius: 99px; background: var(--border); overflow: hidden; }
     .progress-fill {
       height: 100%; width: 0%;
       background: linear-gradient(90deg, var(--fire2), var(--fire));
-      transition: width .1s;
+      transition: width .2s;
     }
-    .progress-label { font-size: .78rem; color: var(--smoke); margin-top: .4rem; text-align: center; }
+    .progress-label { font-size: .8rem; color: var(--smoke); margin-top: .5rem; text-align: center; }
 
-    /* submit */
     .btn {
       width: 100%; margin-top: 1.75rem;
       padding: .95rem; border-radius: .85rem; border: none; cursor: pointer;
@@ -134,24 +119,18 @@
     .btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
     .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-    /* states */
     .success, .error-msg {
       display: none; margin-top: 1.25rem;
       border-radius: .85rem; padding: 1.25rem;
-      text-align: center; font-size: .92rem;
+      text-align: center; font-size: .92rem; line-height: 1.5;
     }
-    .success { background: #0f2e1a; border: 1px solid #1e5c33; color: #4ade80; }
+    .success   { background: #0f2e1a; border: 1px solid #1e5c33; color: #4ade80; }
     .error-msg { background: #2e0f0f; border: 1px solid #5c1e1e; color: #f87171; }
 
-    .divider {
-      border: none; border-top: 1px solid var(--border);
-      margin: 1.5rem 0;
-    }
-
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
     .section-title {
       font-size: .7rem; font-weight: 600; letter-spacing: .12em;
-      text-transform: uppercase; color: var(--smoke);
-      margin-bottom: 1rem;
+      text-transform: uppercase; color: var(--smoke); margin-bottom: 1rem;
     }
   </style>
 </head>
@@ -172,7 +151,6 @@
         <label>Seu @ do Instagram</label>
         <input type="text" id="ig_aluno" placeholder="@seuperfil" />
       </div>
-
       <div class="field">
         <label>@ do cliente / igreja editada</label>
         <input type="text" id="ig_cliente" placeholder="@igrejaxyz" />
@@ -205,29 +183,27 @@
 
       <div class="progress-wrap" id="progress_wrap">
         <div class="progress-bar"><div class="progress-fill" id="progress_fill"></div></div>
-        <div class="progress-label" id="progress_label">Enviando...</div>
+        <div class="progress-label" id="progress_label">Preparando…</div>
       </div>
 
       <button class="btn" id="submit_btn" onclick="enviar()">Enviar edit</button>
 
-      <div class="success" id="success_box">
-        ✅ Edit enviado com sucesso! Obrigado, <span id="nome_aluno"></span>. A equipe CHAMANOEDIT vai analisar em breve 🔥
-      </div>
+      <div class="success" id="success_box"></div>
       <div class="error-msg" id="error_box"></div>
 
-    </div><!-- /card -->
-
-  </div><!-- /wrap -->
+    </div>
+  </div>
 
   <script>
-    const SCRIPT_URL = 'COLE_A_URL_DO_APPS_SCRIPT_AQUI';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwwd3v7m2gOHcmeqQIIicCtYXT6De4-JRWv_1SNIXSTG1fozJWJrU4Zt0sWhJcKz4TM/exec';
+    const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB por chunk
+    const MAX_MB = 200;
 
+    // --- Drag & drop ---
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('video_file');
-    const dzName   = document.getElementById('dz_name');
 
     fileInput.addEventListener('change', () => showFile(fileInput.files[0]));
-
     dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('over'); });
     dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
     dropzone.addEventListener('drop', e => {
@@ -238,11 +214,17 @@
 
     function showFile(f) {
       if (!f) return;
-      dzName.style.display = 'block';
-      dzName.textContent = `📎 ${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`;
+      const dz = document.getElementById('dz_name');
+      dz.style.display = 'block';
+      dz.textContent = `📎 ${f.name}  (${(f.size / 1024 / 1024).toFixed(1)} MB)`;
     }
 
     function val(id) { return document.getElementById(id).value.trim(); }
+
+    function setProgress(pct, label) {
+      document.getElementById('progress_fill').style.width = pct + '%';
+      document.getElementById('progress_label').textContent = label;
+    }
 
     async function enviar() {
       const ig_aluno   = val('ig_aluno');
@@ -251,88 +233,127 @@
       const likes      = val('likes');
       const file       = fileInput.files[0];
 
-      if (!ig_aluno || !ig_cliente || !views || !likes || !file) {
-        mostrarErro('Preencha todos os campos e selecione o vídeo antes de enviar.');
-        return;
-      }
+      hideMessages();
 
-      const MAX_MB = 200;
+      if (!ig_aluno || !ig_cliente || !views || !likes || !file) {
+        return showError('Preencha todos os campos e selecione o vídeo antes de enviar.');
+      }
       if (file.size > MAX_MB * 1024 * 1024) {
-        mostrarErro(`Vídeo muito grande (${(file.size/1024/1024).toFixed(0)} MB). Máximo: ${MAX_MB} MB. Comprime o arquivo e tenta novamente.`);
-        return;
+        return showError(`Arquivo muito grande (${(file.size/1024/1024).toFixed(0)} MB). Máximo: ${MAX_MB} MB.`);
       }
 
       const btn = document.getElementById('submit_btn');
       btn.disabled = true;
-      document.getElementById('success_box').style.display = 'none';
-      document.getElementById('error_box').style.display   = 'none';
-
-      const progWrap  = document.getElementById('progress_wrap');
-      const progFill  = document.getElementById('progress_fill');
-      const progLabel = document.getElementById('progress_label');
-      progWrap.style.display = 'block';
-      progLabel.textContent  = 'Lendo vídeo...';
-      progFill.style.width   = '5%';
+      document.getElementById('progress_wrap').style.display = 'block';
+      setProgress(2, 'Iniciando upload…');
 
       try {
-        // Ler arquivo como base64
-        const b64 = await toBase64(file, (pct) => {
-          progFill.style.width  = (5 + pct * 0.4) + '%';
-          progLabel.textContent = `Processando vídeo… ${Math.round(pct)}%`;
-        });
-
-        progFill.style.width  = '50%';
-        progLabel.textContent = 'Enviando para o Drive…';
-
-        const payload = {
-          ig_aluno, ig_cliente,
-          views: parseInt(views), likes: parseInt(likes),
-          video_name: file.name,
-          video_mime: file.type,
-          video_b64:  b64
-        };
-
-        const resp = await fetch(SCRIPT_URL, {
+        // 1. Criar sessão de upload resumível no Drive via Apps Script
+        const initRes = await fetch(SCRIPT_URL, {
           method: 'POST',
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            action: 'init',
+            ig_aluno, ig_cliente,
+            views: parseInt(views), likes: parseInt(likes),
+            fileName: file.name,
+            mimeType: file.type || 'video/mp4',
+            fileSize: file.size
+          })
+        });
+        const init = await initRes.json();
+        if (!init.ok) throw new Error(init.error || 'Falha ao iniciar upload.');
+
+        const { uploadUrl, fileName } = init;
+
+        // 2. Upload em chunks direto ao Drive
+        setProgress(5, 'Enviando vídeo para o Drive…');
+        const fileId = await uploadChunked(file, uploadUrl, (pct) => {
+          setProgress(5 + pct * 0.88, `Enviando… ${Math.round(pct)}%`);
         });
 
-        const json = await resp.json();
-        progFill.style.width = '100%';
+        // 3. Registrar na planilha
+        setProgress(96, 'Registrando dados…');
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'log',
+            ig_aluno, ig_cliente,
+            views: parseInt(views), likes: parseInt(likes),
+            fileName,
+            fileUrl: fileId ? `https://drive.google.com/file/d/${fileId}/view` : ''
+          })
+        });
 
-        if (json.success) {
-          progWrap.style.display = 'none';
-          const box = document.getElementById('success_box');
-          document.getElementById('nome_aluno').textContent = ig_aluno;
-          box.style.display = 'block';
-          // Limpar form
-          ['ig_aluno','ig_cliente','views','likes'].forEach(id => document.getElementById(id).value = '');
-          fileInput.value = ''; dzName.style.display = 'none';
-        } else {
-          throw new Error(json.error || 'Erro desconhecido.');
-        }
+        setProgress(100, 'Concluído!');
+        setTimeout(() => {
+          document.getElementById('progress_wrap').style.display = 'none';
+        }, 800);
+
+        showSuccess(`Edit enviado com sucesso, ${ig_aluno}! 🔥<br>A equipe CHAMANOEDIT vai analisar em breve.`);
+        resetForm();
+
       } catch (err) {
-        progWrap.style.display = 'none';
-        mostrarErro('Algo deu errado: ' + err.message + '. Tente novamente ou fale com a equipe.');
+        document.getElementById('progress_wrap').style.display = 'none';
+        showError('Algo deu errado: ' + err.message + '. Tente novamente ou fale com a equipe.');
       } finally {
         btn.disabled = false;
       }
     }
 
-    function toBase64(file, onProgress) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total * 100); };
-        reader.onload    = () => resolve(reader.result.split(',')[1]);
-        reader.onerror   = reject;
-        reader.readAsDataURL(file);
-      });
+    async function uploadChunked(file, uploadUrl, onProgress) {
+      let offset = 0;
+      let fileId = null;
+      const total = file.size;
+
+      while (offset < total) {
+        const end   = Math.min(offset + CHUNK_SIZE - 1, total - 1);
+        const chunk = file.slice(offset, end + 1);
+
+        const res = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Range': `bytes ${offset}-${end}/${total}`,
+            'Content-Type': file.type || 'video/mp4'
+          },
+          body: chunk
+        });
+
+        if (res.status === 200 || res.status === 201) {
+          const json = await res.json().catch(() => ({}));
+          fileId = json.id || null;
+          onProgress(100);
+          break;
+        } else if (res.status === 308) {
+          // Resume Incomplete — avança pelo Range retornado
+          const range = res.headers.get('Range');
+          offset = range ? parseInt(range.split('-')[1]) + 1 : end + 1;
+          onProgress(offset / total * 100);
+        } else {
+          const body = await res.text().catch(() => res.status);
+          throw new Error(`Erro no upload (${res.status}): ${body}`);
+        }
+      }
+
+      return fileId;
     }
 
-    function mostrarErro(msg) {
-      const box = document.getElementById('error_box');
-      box.textContent = msg;
-      box.style.display = 'block';
+    function resetForm() {
+      ['ig_aluno','ig_cliente','views','likes'].forEach(id => document.getElementById(id).value = '');
+      fileInput.value = '';
+      document.getElementById('dz_name').style.display = 'none';
+    }
+
+    function hideMessages() {
+      document.getElementById('success_box').style.display = 'none';
+      document.getElementById('error_box').style.display   = 'none';
+    }
+    function showSuccess(html) {
+      const el = document.getElementById('success_box');
+      el.innerHTML = html; el.style.display = 'block';
+    }
+    function showError(msg) {
+      const el = document.getElementById('error_box');
+      el.textContent = msg; el.style.display = 'block';
     }
   </script>
 </body>
