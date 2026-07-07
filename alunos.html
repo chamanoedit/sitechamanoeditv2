@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Envie seu Edit — CHAMANOEDIT</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:    #0A0A0C;
+      --card:  #111114;
+      --border:#222228;
+      --fire:  #FF4500;
+      --fire2: #FF8C00;
+      --cream: #F5ECD7;
+      --smoke: #9A9AA8;
+      --ink:   #0A0A0C;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--cream);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* grain overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    .wrap { position: relative; z-index: 1; width: 100%; max-width: 520px; }
+
+    /* header */
+    .header {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 1rem; margin-bottom: 2.5rem; text-align: center;
+    }
+    .header img { width: 56px; height: 56px; }
+    .header h1 {
+      font-family: 'Anton', sans-serif;
+      font-size: 2rem; letter-spacing: .04em; text-transform: uppercase;
+      background: linear-gradient(135deg, var(--fire2), var(--fire));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .header p { color: var(--smoke); font-size: .9rem; }
+
+    /* card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 1.25rem;
+      padding: 2rem;
+    }
+
+    .field { margin-bottom: 1.25rem; }
+    label {
+      display: block; font-size: .78rem; font-weight: 600;
+      color: var(--smoke); text-transform: uppercase; letter-spacing: .08em;
+      margin-bottom: .5rem;
+    }
+    input[type="text"], input[type="number"] {
+      width: 100%; background: #18181C; border: 1px solid var(--border);
+      border-radius: .65rem; color: var(--cream); font-size: .95rem;
+      padding: .75rem 1rem; outline: none; transition: border-color .2s;
+      font-family: inherit;
+    }
+    input[type="text"]:focus, input[type="number"]:focus {
+      border-color: var(--fire);
+    }
+    input[type="text"]::placeholder, input[type="number"]::placeholder {
+      color: #444;
+    }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    /* drop zone */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: .85rem;
+      padding: 2rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .dropzone:hover, .dropzone.over { border-color: var(--fire); background: #18181C; }
+    .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .dz-icon { font-size: 2rem; margin-bottom: .5rem; }
+    .dz-label { font-size: .9rem; color: var(--smoke); }
+    .dz-label strong { color: var(--cream); }
+    .dz-hint { font-size: .75rem; color: #555; margin-top: .35rem; }
+    .dz-name {
+      display: none; margin-top: .75rem;
+      background: #18181C; border-radius: .5rem; padding: .5rem .75rem;
+      font-size: .82rem; color: var(--cream); word-break: break-all;
+    }
+
+    /* progress */
+    .progress-wrap { display: none; margin-top: 1rem; }
+    .progress-bar {
+      height: 6px; border-radius: 99px;
+      background: var(--border); overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--fire2), var(--fire));
+      transition: width .1s;
+    }
+    .progress-label { font-size: .78rem; color: var(--smoke); margin-top: .4rem; text-align: center; }
+
+    /* submit */
+    .btn {
+      width: 100%; margin-top: 1.75rem;
+      padding: .95rem; border-radius: .85rem; border: none; cursor: pointer;
+      font-family: 'Anton', sans-serif; font-size: 1.1rem; letter-spacing: .06em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--fire2), var(--fire));
+      color: var(--ink);
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    /* states */
+    .success, .error-msg {
+      display: none; margin-top: 1.25rem;
+      border-radius: .85rem; padding: 1.25rem;
+      text-align: center; font-size: .92rem;
+    }
+    .success { background: #0f2e1a; border: 1px solid #1e5c33; color: #4ade80; }
+    .error-msg { background: #2e0f0f; border: 1px solid #5c1e1e; color: #f87171; }
+
+    .divider {
+      border: none; border-top: 1px solid var(--border);
+      margin: 1.5rem 0;
+    }
+
+    .section-title {
+      font-size: .7rem; font-weight: 600; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--smoke);
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="header">
+      <img src="assets/logo-chama.png" alt="CHAMANOEDIT" />
+      <h1>Envie seu Edit</h1>
+      <p>Área exclusiva para alunos — compartilhe seu trabalho com a gente 🔥</p>
+    </div>
+
+    <div class="card">
+
+      <p class="section-title">Seus dados</p>
+
+      <div class="field">
+        <label>Seu @ do Instagram</label>
+        <input type="text" id="ig_aluno" placeholder="@seuperfil" />
+      </div>
+
+      <div class="field">
+        <label>@ do cliente / igreja editada</label>
+        <input type="text" id="ig_cliente" placeholder="@igrejaxyz" />
+      </div>
+
+      <hr class="divider" />
+      <p class="section-title">Métricas do edit</p>
+
+      <div class="row">
+        <div class="field" style="margin:0">
+          <label>Views</label>
+          <input type="number" id="views" placeholder="ex: 45000" min="0" />
+        </div>
+        <div class="field" style="margin:0">
+          <label>Likes</label>
+          <input type="number" id="likes" placeholder="ex: 2300" min="0" />
+        </div>
+      </div>
+
+      <hr class="divider" />
+      <p class="section-title">Vídeo do edit</p>
+
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="video_file" accept="video/*" />
+        <div class="dz-icon">🎬</div>
+        <div class="dz-label"><strong>Arraste o vídeo aqui</strong> ou clique para selecionar</div>
+        <div class="dz-hint">MP4, MOV ou similar · máximo 80 MB</div>
+        <div class="dz-name" id="dz_name"></div>
+      </div>
+
+      <div class="progress-wrap" id="progress_wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progress_fill"></div></div>
+        <div class="progress-label" id="progress_label">Enviando...</div>
+      </div>
+
+      <button class="btn" id="submit_btn" onclick="enviar()">Enviar edit</button>
+
+      <div class="success" id="success_box">
+        ✅ Edit enviado com sucesso! Obrigado, <span id="nome_aluno"></span>. A equipe CHAMANOEDIT vai analisar em breve 🔥
+      </div>
+      <div class="error-msg" id="error_box"></div>
+
+    </div><!-- /card -->
+
+  </div><!-- /wrap -->
+
+  <script>
+    const SCRIPT_URL = 'COLE_A_URL_DO_APPS_SCRIPT_AQUI';
+
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('video_file');
+    const dzName   = document.getElementById('dz_name');
+
+    fileInput.addEventListener('change', () => showFile(fileInput.files[0]));
+
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault(); dropzone.classList.remove('over');
+      const f = e.dataTransfer.files[0];
+      if (f) { fileInput.files = e.dataTransfer.files; showFile(f); }
+    });
+
+    function showFile(f) {
+      if (!f) return;
+      dzName.style.display = 'block';
+      dzName.textContent = `📎 ${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`;
+    }
+
+    function val(id) { return document.getElementById(id).value.trim(); }
+
+    async function enviar() {
+      const ig_aluno   = val('ig_aluno');
+      const ig_cliente = val('ig_cliente');
+      const views      = val('views');
+      const likes      = val('likes');
+      const file       = fileInput.files[0];
+
+      if (!ig_aluno || !ig_cliente || !views || !likes || !file) {
+        mostrarErro('Preencha todos os campos e selecione o vídeo antes de enviar.');
+        return;
+      }
+
+      const MAX_MB = 80;
+      if (file.size > MAX_MB * 1024 * 1024) {
+        mostrarErro(`Vídeo muito grande (${(file.size/1024/1024).toFixed(0)} MB). Máximo: ${MAX_MB} MB. Comprime o arquivo e tenta novamente.`);
+        return;
+      }
+
+      const btn = document.getElementById('submit_btn');
+      btn.disabled = true;
+      document.getElementById('success_box').style.display = 'none';
+      document.getElementById('error_box').style.display   = 'none';
+
+      const progWrap  = document.getElementById('progress_wrap');
+      const progFill  = document.getElementById('progress_fill');
+      const progLabel = document.getElementById('progress_label');
+      progWrap.style.display = 'block';
+      progLabel.textContent  = 'Lendo vídeo...';
+      progFill.style.width   = '5%';
+
+      try {
+        // Ler arquivo como base64
+        const b64 = await toBase64(file, (pct) => {
+          progFill.style.width  = (5 + pct * 0.4) + '%';
+          progLabel.textContent = `Processando vídeo… ${Math.round(pct)}%`;
+        });
+
+        progFill.style.width  = '50%';
+        progLabel.textContent = 'Enviando para o Drive…';
+
+        const payload = {
+          ig_aluno, ig_cliente,
+          views: parseInt(views), likes: parseInt(likes),
+          video_name: file.name,
+          video_mime: file.type,
+          video_b64:  b64
+        };
+
+        const resp = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        const json = await resp.json();
+        progFill.style.width = '100%';
+
+        if (json.success) {
+          progWrap.style.display = 'none';
+          const box = document.getElementById('success_box');
+          document.getElementById('nome_aluno').textContent = ig_aluno;
+          box.style.display = 'block';
+          // Limpar form
+          ['ig_aluno','ig_cliente','views','likes'].forEach(id => document.getElementById(id).value = '');
+          fileInput.value = ''; dzName.style.display = 'none';
+        } else {
+          throw new Error(json.error || 'Erro desconhecido.');
+        }
+      } catch (err) {
+        progWrap.style.display = 'none';
+        mostrarErro('Algo deu errado: ' + err.message + '. Tente novamente ou fale com a equipe.');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function toBase64(file, onProgress) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total * 100); };
+        reader.onload    = () => resolve(reader.result.split(',')[1]);
+        reader.onerror   = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function mostrarErro(msg) {
+      const box = document.getElementById('error_box');
+      box.textContent = msg;
+      box.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
