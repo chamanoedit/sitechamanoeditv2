@@ -199,7 +199,7 @@
         <input type="file" id="video_file" accept="video/*" />
         <div class="dz-icon">🎬</div>
         <div class="dz-label"><strong>Arraste o vídeo aqui</strong> ou clique para selecionar</div>
-        <div class="dz-hint">MP4, MOV ou similar · máximo 80 MB</div>
+        <div class="dz-hint">MP4, MOV ou similar · máximo 200 MB</div>
         <div class="dz-name" id="dz_name"></div>
       </div>
 
@@ -256,7 +256,7 @@
         return;
       }
 
-      const MAX_MB = 80;
+      const MAX_MB = 200;
       if (file.size > MAX_MB * 1024 * 1024) {
         mostrarErro(`Vídeo muito grande (${(file.size/1024/1024).toFixed(0)} MB). Máximo: ${MAX_MB} MB. Comprime o arquivo e tenta novamente.`);
         return;
