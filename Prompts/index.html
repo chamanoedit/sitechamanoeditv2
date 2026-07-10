@@ -125,6 +125,28 @@
       text-transform: uppercase; letter-spacing: .015em; line-height: 1.1;
     }
 
+    /* imagem da produção */
+    .prod-img {
+      position: relative; border-radius: 1rem; overflow: hidden;
+      border: 1px solid var(--border); margin-bottom: 1.4rem;
+      box-shadow: 0 14px 45px rgba(0,0,0,.5);
+    }
+    .prod-img img { display: block; width: 100%; height: auto; }
+    .prod-img::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, transparent 68%, rgba(10,10,12,.55) 100%);
+      pointer-events: none;
+    }
+    .prod-img .img-tag {
+      position: absolute; bottom: .8rem; left: .9rem; z-index: 2;
+      font-size: .64rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--cream);
+      background: rgba(10,10,12,.72); backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,140,0,.3); border-radius: 99px;
+      padding: .3rem .75rem;
+    }
+
     /* prompt box */
     .pbox {
       background: var(--card); border: 1px solid var(--border);
@@ -185,6 +207,34 @@
 
     /* ---------- PROFILE CARD ---------- */
     .profile-wrap { padding: 4.5rem 0 2rem; }
+    .duo-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;
+      align-items: stretch;
+    }
+    @media (max-width: 720px) { .duo-grid { grid-template-columns: 1fr; } }
+    .duo-grid .profile-card {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .card-eyebrow {
+      font-size: .66rem; font-weight: 700; letter-spacing: .18em;
+      text-transform: uppercase; color: var(--fire2); margin-bottom: 1rem;
+    }
+    .aula-title {
+      font-family: 'Anton', sans-serif;
+      font-size: 1.55rem; line-height: 1.15; text-transform: uppercase;
+    }
+    .aula-desc {
+      max-width: 340px; margin: 1rem auto 0;
+      font-size: .88rem; color: var(--smoke); line-height: 1.7;
+    }
+    .gift { font-size: 2.6rem; line-height: 1; margin-bottom: 1rem;
+      filter: drop-shadow(0 6px 18px rgba(255,69,0,.45)); }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 8px 30px rgba(255,69,0,.35); }
+      50%      { box-shadow: 0 8px 44px rgba(255,69,0,.65); }
+    }
+    .btn-follow.pulse { animation: pulse-glow 2.2s ease-in-out infinite; }
     .profile-card {
       position: relative; overflow: hidden;
       background: linear-gradient(160deg, #141418 0%, #0E0E11 100%);
@@ -315,6 +365,11 @@
         <h2 class="prod-title">Em Chamas</h2>
       </div>
 
+      <div class="prod-img">
+        <img src="/assets/prompt-01.jpg" alt="Celeiro vermelho em chamas — produção Em Chamas" loading="lazy" />
+        <span class="img-tag">Frame final · GPT 2</span>
+      </div>
+
       <div class="pbox">
         <div class="pbox-head">
           <span class="pbox-label">Prompt · Imagem <span class="tag">GPT 2</span></span>
@@ -370,6 +425,11 @@ Hollywood cinematic still frame, ultra-realistic photography, natural film color
       <div class="prod-head">
         <span class="prod-num">02</span>
         <h2 class="prod-title">Caminhando na Rua</h2>
+      </div>
+
+      <div class="prod-img">
+        <img src="/assets/prompt-02.jpg" alt="Folha de contato do personagem — produção Caminhando na Rua" loading="lazy" />
+        <span class="img-tag">Folha de contato · Nano Banana</span>
       </div>
 
       <div class="pbox">
@@ -433,6 +493,11 @@ sem céu limpo, sem dia ensolarado, sem cores saturadas, sem alto contraste, sem
       <div class="prod-head">
         <span class="prod-num">03</span>
         <h2 class="prod-title">Raio-X</h2>
+      </div>
+
+      <div class="prod-img">
+        <img src="/assets/prompt-03.jpg" alt="Radiografia artística com fumaça — produção Raio-X" loading="lazy" />
+        <span class="img-tag">Frame final · Nano Banana</span>
       </div>
 
       <div class="pbox">
@@ -509,6 +574,11 @@ Uma obra de arte médica contemporânea que combina realismo anatômico, minimal
       <div class="prod-head">
         <span class="prod-num">04</span>
         <h2 class="prod-title">Opponent Is You</h2>
+      </div>
+
+      <div class="prod-img">
+        <img src="/assets/prompt-04.jpg" alt="Dois personagens frente a frente no campo à noite — produção Opponent Is You" loading="lazy" />
+        <span class="img-tag">Frame final · Seedance</span>
       </div>
 
       <div class="pbox">
@@ -661,6 +731,11 @@ Realistic physics</pre>
         <h2 class="prod-title">Minecraft</h2>
       </div>
 
+      <div class="prod-img">
+        <img src="/assets/prompt-05.jpg" alt="Tela de morte do Minecraft na vida real — produção Minecraft" loading="lazy" />
+        <span class="img-tag">Frame final · Nano Banana</span>
+      </div>
+
       <div class="pbox">
         <div class="pbox-head">
           <span class="pbox-label">Prompt · Imagem <span class="tag">Nano Banana</span></span>
@@ -730,9 +805,11 @@ distorção facial, morphing, deformação das mãos, itens derretendo, moviment
 
   <hr class="divider" />
 
-  <!-- PROFILE CARD -->
+  <!-- PROFILE + AULA GRÁTIS -->
   <div class="profile-wrap">
-    <div class="container" style="max-width:560px">
+    <div class="container">
+      <div class="duo-grid">
+
       <div class="profile-card">
         <div class="avatar-ring">
           <img src="/assets/profile-gui.jpg" alt="Guilherme Guisolfi — @chamadegui" />
@@ -760,15 +837,19 @@ distorção facial, morphing, deformação das mãos, itens derretendo, moviment
           Seguir no Instagram
         </a>
       </div>
-    </div>
-  </div>
 
-  <!-- FINAL CTA -->
-  <div class="final">
-    <div class="container">
-      <h2>Aprenda meu método de criar<br /><span class="fire-text">conteúdo em uma aula grátis</span> 🎁</h2>
-      <p>Nunca foi tão fácil produzir imagem — e nunca foi tão raro produzir sentido. Se você quer aprender a criar conteúdo viral no nicho cristão, a aula gratuita do CHAMANOEDIT é o seu ponto de partida.</p>
-      <a class="btn-cta" href="https://chamanoedit.com" target="_blank" rel="noopener">Assistir à aula gratuita →</a>
+      <div class="profile-card">
+        <div class="gift">🎁</div>
+        <p class="card-eyebrow">Antes de fechar</p>
+        <h2 class="aula-title">Aprenda meu método<br /><span class="fire-text">em uma aula grátis</span></h2>
+        <p class="aula-desc">Nunca foi tão fácil produzir imagem — e nunca foi tão raro produzir sentido. Se você quer criar conteúdo viral no nicho cristão, a aula gratuita do CHAMANOEDIT é o seu ponto de partida.</p>
+        <a class="btn-follow pulse" href="https://chamanoedit.com" target="_blank" rel="noopener" style="margin-top:1.6rem">
+          <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3" fill="currentColor" stroke="none"/></svg>
+          Assistir à aula gratuita
+        </a>
+      </div>
+
+      </div><!-- /duo-grid -->
     </div>
   </div>
 
