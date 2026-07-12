@@ -7,23 +7,39 @@
   <meta name="description" content="Curso completo de edição de vídeos de pregação, do zero ao avançado. Domine o Premiere, crie cortes virais e leve o Evangelho às nações com o método CHAMA." />
   <meta name="theme-color" content="#0A0A0C" />
 
-  <!-- Meta Pixel Code -->
+  <!-- Meta Pixel Code (adiado: primeira interação ou 3s — não bloqueia carregamento) -->
   <script>
-  !function(f,b,e,v,n,t,s)
-  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-  n.queue=[];t=b.createElement(e);t.async=!0;
-  t.src=v;s=b.getElementsByTagName(e)[0];
-  s.parentNode.insertBefore(t,s)}(window, document,'script',
-  'https://connect.facebook.net/en_US/fbevents.js');
-  fbq('init', '875251385570429');
-  fbq('track', 'PageView');
+  (function () {
+    var loaded = false;
+    function loadPixel() {
+      if (loaded) return; loaded = true;
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '875251385570429');
+      fbq('track', 'PageView');
+      ['pointerdown','keydown','touchstart','scroll'].forEach(function (ev) {
+        window.removeEventListener(ev, loadPixel, { passive: true });
+      });
+    }
+    ['pointerdown','keydown','touchstart','scroll'].forEach(function (ev) {
+      window.addEventListener(ev, loadPixel, { passive: true, once: true });
+    });
+    setTimeout(loadPixel, 3000);
+  })();
   </script>
   <noscript><img height="1" width="1" style="display:none"
   src="https://www.facebook.com/tr?id=875251385570429&ev=PageView&noscript=1"
   /></noscript>
   <!-- End Meta Pixel Code -->
+
+  <!-- LCP: poster da VSL -->
+  <link rel="preload" as="image" href="assets/vsl-poster.jpg" fetchpriority="high" />
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="assets/favicon.png" />
@@ -205,7 +221,7 @@
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div id="navbar" class="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-ink/40 px-4 py-3 backdrop-blur-md transition-all duration-300 sm:px-5">
         <a href="#topo" class="flex items-center gap-2.5 font-display text-lg font-extrabold tracking-tight">
-          <img src="assets/logo-chama.png" alt="CHAMANOEDIT" class="h-9 w-9 rounded-lg" />
+          <img src="assets/logo-chama.png" alt="CHAMANOEDIT" width="36" height="36" class="h-9 w-9 rounded-lg" />
           <span>CHAMA<span class="fire-text">NOEDIT</span></span>
         </a>
 
@@ -260,7 +276,7 @@
       <!-- VSL (aula gratuita) -->
       <div id="vslHolder" class="reveal mx-auto mt-10 max-w-4xl" style="transition-delay:.1s">
         <button id="vslPlay" type="button" data-yt="tTfK3aslZos" data-start="0" class="group relative block aspect-video w-full cursor-pointer overflow-hidden rounded-3xl border border-white/10 shadow-2xl" aria-label="Assistir à aula gratuita">
-          <img src="https://i.ytimg.com/vi/tTfK3aslZos/maxresdefault.jpg" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/tTfK3aslZos/hqdefault.jpg'" alt="Aula gratuita CHAMANOEDIT — aprenda a editar cortes que explodem nas redes" loading="lazy" class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <img src="assets/vsl-poster.jpg" width="1024" height="576" fetchpriority="high" alt="Aula gratuita CHAMANOEDIT — aprenda a editar cortes que explodem nas redes" class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
           <span class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/40"></span>
           <span class="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-md bg-flame px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white">
             <span class="h-1.5 w-1.5 rounded-full bg-white pulse-soft"></span> Aula gratuita
@@ -717,7 +733,7 @@
                 <p class="mt-3 text-xs text-smoke">Foto do mentor</p>
               </div>
             </div>
-            <img src="assets/guilherme.jpg" alt="Guilherme Guisolfi" loading="lazy" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover" />
+            <img src="assets/guilherme.jpg" alt="Guilherme Guisolfi" width="545" height="770" loading="lazy" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover" />
             <div class="absolute bottom-4 left-4 z-10 rounded-xl border border-white/10 bg-black/55 px-4 py-2.5 backdrop-blur">
               <p class="font-display text-base font-bold leading-none">Guilherme Guisolfi</p>
               <p class="mt-1 text-xs text-smoke">Editor &amp; mentor do CHAMANOEDIT</p>
@@ -977,7 +993,7 @@
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div class="flex flex-col items-center justify-between gap-6 sm:flex-row">
         <a href="#topo" class="flex items-center gap-2.5 font-display text-lg font-extrabold tracking-tight">
-          <img src="assets/logo-chama.png" alt="CHAMANOEDIT" class="h-9 w-9 rounded-lg" />
+          <img src="assets/logo-chama.png" alt="CHAMANOEDIT" width="36" height="36" class="h-9 w-9 rounded-lg" />
           <span>CHAMA<span class="fire-text">NOEDIT</span></span>
         </a>
         <p class="text-sm text-smoke">Sua mensagem alcançando nações.</p>
@@ -1320,7 +1336,7 @@
           const n = String(i + 1).padStart(2, '0');
           return '<div class="relative aspect-video w-52 shrink-0 overflow-hidden rounded-xl border border-white/10 sm:w-72" role="img" aria-label="Módulo: ' + t + '">' +
             '<div class="absolute inset-0 grid place-items-center"><span class="font-poster text-2xl text-white/10">' + n + '</span></div>' +
-            '<img src="assets/modulo-' + n + '.jpg" alt="' + t + '" loading="lazy" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover" />' +
+            '<img src="assets/modulo-' + n + '.jpg" alt="' + t + '" width="640" height="360" loading="lazy" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover" />' +
             '</div>';
         };
         const top = MODULES.map(cover);                 // ordem normal
