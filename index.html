@@ -1086,6 +1086,37 @@
       // Botão do pack (oferta própria) → checkout Hotmart do pack
       wireBuy('[data-buy="pack"]', PACK_URL);
 
+      // --- Rastreio: repassa UTMs/fbclid da página para o checkout Hotmart
+      // (senão toda venda chega como "Não identificada" na Hotmart)
+      (function () {
+        var KEY = 'chama_utms';
+        var search = window.location.search;
+        // guarda os parâmetros da primeira visita (sobrevive a navegação interna)
+        if (search && search.length > 1) {
+          try { sessionStorage.setItem(KEY, search); } catch (e) {}
+        }
+        var stored = search && search.length > 1 ? search : (function () {
+          try { return sessionStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+        })();
+        if (!stored || stored.length < 2) return;
+        var incoming = new URLSearchParams(stored);
+        document.querySelectorAll('a[href*="pay.hotmart.com"]').forEach(function (link) {
+          try {
+            var url = new URL(link.href);
+            incoming.forEach(function (value, key) {
+              if (!url.searchParams.has(key)) url.searchParams.set(key, value);
+            });
+            // sck = campo de rastreio que a Hotmart lê e mostra na ficha da venda
+            if (!url.searchParams.has('sck') && incoming.get('utm_source')) {
+              var sck = [incoming.get('utm_source'), incoming.get('utm_medium'), incoming.get('utm_campaign')]
+                .filter(Boolean).join('|').substring(0, 100);
+              url.searchParams.set('sck', sck);
+            }
+            link.href = url.toString();
+          } catch (e) {}
+        });
+      })();
+
       // --- WhatsApp links
       const waUrl = 'https://wa.me/' + WHATSAPP;
       ['waFloat', 'waFooter', 'waInline'].forEach((id) => {
