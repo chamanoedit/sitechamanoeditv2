@@ -7,9 +7,44 @@
   <meta name="description" content="Curso completo de edição de vídeos de pregação, do zero ao avançado. Domine o Premiere, crie cortes virais e leve o Evangelho às nações com o método CHAMA." />
   <meta name="theme-color" content="#0A0A0C" />
 
-  <!-- Meta Pixel Code (adiado: primeira interação ou 3s — não bloqueia carregamento) -->
+  <!-- Meta Pixel (navegador, adiado) + Conversions API (servidor, imediato)
+       Mesmo event_id nos dois canais → o Meta deduplica. -->
   <script>
   (function () {
+    // event_id compartilhado entre pixel do navegador e CAPI
+    var eventId = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : 'ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+
+    function getCookie(name) {
+      var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return m ? m.pop() : '';
+    }
+
+    // --- CAPI (server-side): dispara cedo, não depende do pixel carregar.
+    // Navegadores in-app do Instagram bloqueiam o pixel; este canal passa.
+    function sendCapi() {
+      try {
+        var body = JSON.stringify({
+          event_id: eventId,
+          url: location.href,
+          fbp: getCookie('_fbp'),
+          fbc: getCookie('_fbc'),
+          fbclid: new URLSearchParams(location.search).get('fbclid') || ''
+        });
+        // text/plain = requisição CORS simples (sem preflight, mais leve)
+        fetch('https://capi-chamanoedit.vercel.app/api/pageview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: body,
+          keepalive: true
+        }).catch(function () {});
+      } catch (e) {}
+    }
+    if (document.readyState === 'complete') setTimeout(sendCapi, 300);
+    else window.addEventListener('load', function () { setTimeout(sendCapi, 300); });
+
+    // --- Pixel do navegador (adiado: primeira interação ou 3s)
     var loaded = false;
     function loadPixel() {
       if (loaded) return; loaded = true;
@@ -22,7 +57,7 @@
       s.parentNode.insertBefore(t,s)}(window, document,'script',
       'https://connect.facebook.net/en_US/fbevents.js');
       fbq('init', '875251385570429');
-      fbq('track', 'PageView');
+      fbq('track', 'PageView', {}, { eventID: eventId });
       ['pointerdown','keydown','touchstart','scroll'].forEach(function (ev) {
         window.removeEventListener(ev, loadPixel, { passive: true });
       });
