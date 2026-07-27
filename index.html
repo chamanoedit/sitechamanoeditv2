@@ -1162,8 +1162,9 @@
         });
       })();
 
-      // --- WhatsApp links
-      const waUrl = 'https://wa.me/' + WHATSAPP;
+      // --- WhatsApp links (com mensagem pré-preenchida)
+      const waMsg = 'Olá, vim pelo site do Chamanoedit, tenho interesse.';
+      const waUrl = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(waMsg);
       ['waFloat', 'waFooter', 'waInline'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.setAttribute('href', waUrl);
