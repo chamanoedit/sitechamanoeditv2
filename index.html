@@ -1154,6 +1154,31 @@
       'use strict';
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+      // --- CTA "Quero o método CHAMA" no fim de cada seção de conteúdo.
+      // Leva para a seção da oferta (#oferta) — padrão do site. Pula seções que
+      // já têm botão de ação (hero, oferta, pack, CTA final) e o marquee de nomes.
+      (function () {
+        const SKIP_IDS = ['topo', 'oferta', 'pack'];
+        const ctaWrap = () => {
+          const div = document.createElement('div');
+          div.className = 'reveal mt-12 flex justify-center';
+          div.innerHTML =
+            '<a data-buy="main" href="#oferta" class="btn-fire group inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-7 py-4 text-base font-semibold text-ink">' +
+            'Quero o método CHAMA' +
+            '<svg class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow"/></svg>' +
+            '</a>';
+          return div;
+        };
+        document.querySelectorAll('section').forEach((sec) => {
+          if (SKIP_IDS.indexOf(sec.id) > -1) return;      // hero, oferta, pack
+          if (sec.classList.contains('border-y')) return;  // marquee de nomes
+          if (sec.querySelector('.btn-fire')) return;      // já tem botão de ação
+          const container = Array.prototype.find.call(sec.children, (c) =>
+            c.tagName === 'DIV' && /max-w-/.test(c.className));
+          if (container) container.appendChild(ctaWrap());
+        });
+      })();
+
       // --- Buy buttons -> checkout (data-buy="main" | "pack")
       const wireBuy = (selector, url) => {
         document.querySelectorAll(selector).forEach((a) => {
