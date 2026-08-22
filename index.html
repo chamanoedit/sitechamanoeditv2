@@ -270,30 +270,7 @@
           <span>CHAMA<span class="fire-text">NOEDIT</span></span>
         </a>
 
-        <nav class="hidden items-center gap-7 text-sm font-medium text-smoke lg:flex">
-          <a href="#metodo" class="transition-colors hover:text-cream">Método</a>
-          <a href="#conteudo" class="transition-colors hover:text-cream">Conteúdo</a>
-          <a href="#provas" class="transition-colors hover:text-cream">Provas</a>
-          <a href="#autor" class="transition-colors hover:text-cream">Mentor</a>
-          <a href="#faq" class="transition-colors hover:text-cream">FAQ</a>
-        </nav>
-
-        <div class="flex items-center gap-2">
-          <a data-buy="main" href="#oferta" class="btn-fire hidden cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold text-ink sm:inline-flex">Garantir vaga</a>
-          <button id="menuBtn" aria-label="Abrir menu" aria-expanded="false" class="grid h-10 w-10 cursor-pointer place-items-center rounded-xl border border-white/10 text-cream lg:hidden">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-menu"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Mobile menu -->
-      <div id="mobileMenu" class="mt-2 hidden rounded-2xl border border-white/10 bg-ink2/95 p-3 backdrop-blur-md lg:hidden">
-        <a href="#metodo" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">Método</a>
-        <a href="#conteudo" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">Conteúdo</a>
-        <a href="#provas" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">Provas</a>
-        <a href="#autor" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">Mentor</a>
-        <a href="#faq" class="block rounded-lg px-4 py-3 text-cream hover:bg-white/5">FAQ</a>
-        <a data-buy="main" href="#oferta" class="btn-fire mt-2 block cursor-pointer rounded-xl px-4 py-3 text-center font-semibold text-ink">Garantir minha vaga</a>
+        <a data-buy="main" href="#oferta" class="btn-fire inline-flex cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold text-ink">Garantir vaga</a>
       </div>
     </div>
   </header>
@@ -1259,19 +1236,6 @@
       window.addEventListener('scroll', onScroll, { passive: true });
       onScroll();
 
-      // --- Mobile menu
-      const menuBtn = document.getElementById('menuBtn');
-      const mobileMenu = document.getElementById('mobileMenu');
-      menuBtn.addEventListener('click', () => {
-        const open = mobileMenu.classList.toggle('hidden') === false;
-        menuBtn.setAttribute('aria-expanded', String(open));
-      });
-      mobileMenu.querySelectorAll('a').forEach((a) =>
-        a.addEventListener('click', () => {
-          mobileMenu.classList.add('hidden');
-          menuBtn.setAttribute('aria-expanded', 'false');
-        })
-      );
 
       // --- Reveal on scroll
       const revealEls = document.querySelectorAll('.reveal');
