@@ -1,0 +1,2205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chama Studio</title>
+<meta name="description" content="Monte a cena em 3D, mova a câmera com lentes reais ou com o giroscópio do celular e salve o vídeo de previs para animar no Higgsfield.">
+<meta property="og:title" content="Chama Studio">
+<meta property="og:description" content="Monte a cena em 3D, mova a câmera com lentes reais ou com o giroscópio do celular e salve o vídeo de previs para animar no Higgsfield.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#131312">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1b19'/%3E%3Ccircle cx='32' cy='32' r='13' fill='%23e5482d'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+  :root { color-scheme: light; }
+  html, body { overscroll-behavior: none; }
+  #app { padding-top: max(12px, env(safe-area-inset-top, 0px)); padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+  @supports (height: 100dvh) { #app { height: 100dvh; } }
+
+  /* Layout: one screen. The picture takes everything; a single quiet bar underneath holds the three ways
+     to move the camera, the timeline and the record button. Controls borrow from a viewfinder: focal
+     lengths as numerals, a tally light, timecode in mono. Red is reserved for recording. */
+  :root {
+    --bg: #eceae5; --stage: #dcd9d2; --panel: #faf9f6; --ink: #1c1b19; --muted: #6d6a64; --line: #d9d5cd;
+    --chip: #efede8; --glass: rgba(250, 249, 246, 0.88); --rec: #d93a26; --rail: #2b63d9; --wedge: rgba(28, 27, 25, 0.16);
+    --ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif; --mono: "DM Mono", ui-monospace, Menlo, monospace;
+    --r: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #131312; --stage: #0b0b0a; --panel: #1d1c1b; --ink: #f2f0eb; --muted: #9b978f; --line: #32302d;
+      --chip: #282725; --glass: rgba(29, 28, 27, 0.86); --rec: #f0503a; --rail: #6f9cff; --wedge: rgba(242, 240, 235, 0.2); color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #131312; --stage: #0b0b0a; --panel: #1d1c1b; --ink: #f2f0eb; --muted: #9b978f; --line: #32302d;
+    --chip: #282725; --glass: rgba(29, 28, 27, 0.86); --rec: #f0503a; --rail: #6f9cff; --wedge: rgba(242, 240, 235, 0.2); color-scheme: dark; }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--ui); font-size: 14px; overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; background: none; padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  :focus-visible { outline: 2px solid var(--rail); outline-offset: 2px; }
+  svg { display: block; }
+
+  #app { height: 100%; display: flex; flex-direction: column; gap: 10px; padding-block: 12px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+  /* ---------- the picture ---------- */
+  #stage { position: relative; flex: 1; min-height: 0; border-radius: 16px; overflow: hidden; background: var(--stage); touch-action: none; user-select: none; -webkit-user-select: none; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #ink { pointer-events: none; }
+  .glass { background: var(--glass); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid var(--line); }
+
+  #top { position: absolute; inset: 10px 10px auto 10px; display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; pointer-events: none; }
+  #top > * { pointer-events: auto; }
+  #ask { flex: 1; min-width: 0; max-width: 520px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; border-radius: 20px; }
+  #ask svg { flex: none; color: var(--muted); }
+  #ask-input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; font-size: 14px; }
+  #ask-input::placeholder { color: var(--muted); }
+  #ask-go { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--panel); display: grid; place-items: center; }
+  #ask-go[disabled] { opacity: 0.25; cursor: default; }
+  #ask.busy #ask-go { background: var(--chip); color: var(--ink); }
+  #opts { height: 40px; padding: 0 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; }
+
+  #lens { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 24px; }
+  #lens button { min-width: 36px; height: 36px; padding: 0 8px; border-radius: 18px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); transition: background .15s, color .15s; }
+  #lens button[aria-pressed="true"] { background: var(--ink); color: var(--panel); font-weight: 500; }
+  #lens button[aria-pressed="true"]::after { content: "mm"; opacity: 0.7; margin-left: 1px; }
+  #lens-live { font-family: var(--mono); font-size: 12.5px; padding: 0 10px 0 8px; color: var(--ink); }
+
+  #home { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; }
+  #gyro { position: absolute; right: 10px; top: 60px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; }
+  #gyro[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  #swap { position: absolute; border-radius: 10px; }
+  #tally { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 7px 14px 7px 11px; border-radius: 20px;
+    background: var(--rec); color: #fff; font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; }
+  #tally i { width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: blink 1s steps(2, start) infinite; }
+  @keyframes blink { to { visibility: hidden; } }
+  #count { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: clamp(72px, 18vw, 150px); font-weight: 500; color: #fff; text-shadow: 0 2px 30px rgba(0, 0, 0, .45); pointer-events: none; }
+  #hint { position: absolute; left: 50%; bottom: 68px; transform: translateX(-50%); max-width: calc(100% - 24px); padding: 7px 13px; border-radius: 16px; font-size: 12.5px; color: var(--muted); text-align: center; transition: opacity .5s; pointer-events: none; }
+  #hint.off { opacity: 0; }
+
+  #stick { position: absolute; left: 14px; bottom: 66px; width: 104px; height: 104px; border-radius: 50%; touch-action: none; }
+  #stick i { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px; border-radius: 50%; background: var(--ink); opacity: 0.85; }
+  #lift { position: absolute; right: 14px; bottom: 66px; display: flex; flex-direction: column; gap: 6px; }
+  #lift button { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; touch-action: none; }
+
+  #veil { position: absolute; inset: 0; display: grid; place-items: center; background: var(--stage); }
+  #veil div { width: min(300px, 80%); display: grid; gap: 12px; text-align: center; }
+  #veil b { font-weight: 500; }
+  #veil progress { width: 100%; height: 6px; appearance: none; -webkit-appearance: none; border: 0; border-radius: 3px; overflow: hidden; background: var(--chip); }
+  #veil progress::-webkit-progress-bar { background: var(--chip); }
+  #veil progress::-webkit-progress-value { background: var(--ink); }
+  #veil progress::-moz-progress-bar { background: var(--ink); }
+  #veil button { justify-self: center; color: var(--muted); padding: 6px 10px; }
+
+  /* ---------- settings ---------- */
+  #sheet { position: absolute; top: 58px; right: 10px; width: min(300px, calc(100% - 20px)); max-height: calc(100% - 70px); overflow: auto; padding: 14px; border-radius: 16px; display: grid; gap: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 12px 40px rgba(0, 0, 0, .16); }
+  .field { display: grid; gap: 6px; }
+  .field > span { font-size: 12px; color: var(--muted); }
+  .seg { display: flex; padding: 3px; border-radius: 10px; background: var(--chip); }
+  .seg button { flex: 1; min-width: 0; height: 32px; border-radius: 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+  .seg.mono button { font-family: var(--mono); font-size: 12.5px; }
+  .links { display: flex; flex-wrap: wrap; gap: 6px; }
+  .links button { height: 32px; padding: 0 12px; border-radius: 16px; background: var(--chip); font-size: 13px; }
+
+  /* ---------- the bar ---------- */
+  #dock { display: grid; gap: 8px; }
+  #panel { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  #moves { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding: 2px; scrollbar-width: none; flex: 1; }
+  #moves::-webkit-scrollbar { display: none; }
+  .chip { flex: none; height: 36px; padding: 0 14px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; white-space: nowrap; }
+  .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); font-weight: 500; }
+  #target { flex: none; height: 36px; padding: 0 10px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; max-width: 42vw; }
+  #railbox { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; flex: 1; min-width: 0; }
+  #railbox label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  #railbox output { font-family: var(--mono); font-size: 12.5px; color: var(--ink); min-width: 4.2em; }
+  #railbox input[type="range"] { width: 96px; }
+  #railbox .seg { width: 190px; }
+
+  #bar { display: grid; grid-template-columns: auto auto minmax(60px, 1fr) auto auto; grid-template-areas: "modes play time clock act"; align-items: center; gap: 10px; }
+  #modes { grid-area: modes; width: 264px; }
+  #play { grid-area: play; width: 40px; height: 40px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line); display: grid; place-items: center; }
+  #time { grid-area: time; width: 100%; min-width: 0; }
+  #clock { grid-area: clock; font-family: var(--mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #clock b { color: var(--ink); font-weight: 500; }
+  #act { grid-area: act; display: flex; gap: 8px; }
+  .big { height: 42px; padding: 0 18px; border-radius: 21px; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  #rec { background: var(--rec); color: #fff; }
+  #rec i { width: 10px; height: 10px; border-radius: 50%; background: #fff; }
+  #app[data-state="rec"] #rec i, #app[data-state="count"] #rec i { border-radius: 2px; }
+  #save { background: var(--ink); color: var(--panel); }
+  #redo { background: var(--panel); border: 1px solid var(--line); }
+  input[type="range"] { accent-color: var(--ink); height: 24px; margin: 0; }
+
+  #toast { position: fixed; left: 50%; top: calc(74px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); max-width: min(440px, calc(100% - 32px)); padding: 10px 16px; border-radius: 14px; background: var(--ink); color: var(--panel); font-size: 13.5px; text-align: center; z-index: 5; }
+
+  #app[data-state="count"] #top, #app[data-state="rec"] #top, #app[data-state="review"] #top, #app[data-state="export"] #top,
+  #app[data-state="review"] #lens, #app[data-state="export"] #lens, #app[data-state="export"] #home, #app[data-state="review"] #home, #app[data-state="export"] #gyro, #app[data-state="review"] #gyro,
+  #app[data-state="count"] #hint, #app[data-state="rec"] #hint, #app[data-state="review"] #hint, #app[data-state="export"] #hint { display: none; }
+  #app[data-state="review"] #panel, #app[data-state="export"] #panel, #app[data-state="review"] #modes, #app[data-state="export"] #modes { display: none; }
+  #app[data-state="review"] #bar, #app[data-state="export"] #bar { grid-template-columns: auto minmax(60px, 1fr) auto auto; grid-template-areas: "play time clock act"; }
+
+  #app[data-state="count"] #panel, #app[data-state="rec"] #panel { display: none; }
+  #app[data-state="count"] #modes, #app[data-state="rec"] #modes { opacity: 0.35; pointer-events: none; }
+
+  @media (max-width: 720px) {
+    #bar { grid-template-columns: auto minmax(40px, 1fr) auto; grid-template-areas: "modes modes act" "play time clock"; }
+    #modes { width: auto; }
+    #app[data-state="review"] #bar, #app[data-state="export"] #bar { grid-template-columns: auto minmax(40px, 1fr) auto; grid-template-areas: "play time clock" "act act act"; }
+    #app[data-state="review"] #act > * { flex: 1; justify-content: center; }
+    .big { padding: 0 14px; }
+    #lens button { min-width: 32px; height: 34px; padding: 0 6px; }
+    #railbox input[type="range"] { width: 76px; }
+    #hint { bottom: 186px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="app" data-state="live">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <canvas id="ink"></canvas>
+
+    <div id="top">
+      <form id="ask" class="glass" autocomplete="off">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l1.6 4.9L14.5 6.5 9.6 8.1 8 13 6.4 8.1 1.5 6.5l4.9-1.6zM13 11l.7 2.3L16 14l-2.3.7L13 17l-.7-2.3L10 14l2.3-.7z"/></svg>
+        <input id="ask-input" type="text" enterkeyhint="send" spellcheck="false">
+        <button id="ask-go" type="submit" disabled>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V2M2.5 6.5L7 2l4.5 4.5"/></svg>
+        </button>
+      </form>
+      <button id="opts" class="glass" type="button" aria-haspopup="true" aria-expanded="false">
+        <span id="opts-ratio">16:9</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M1.5 4h6M11 4h1.5M1.5 10H3M6.5 10h6"/><circle cx="9.2" cy="4" r="1.7"/><circle cx="4.8" cy="10" r="1.7"/></svg>
+      </button>
+    </div>
+
+    <button id="swap" type="button" hidden></button>
+    <div id="hint" class="glass off"></div>
+    <div id="lens" class="glass" role="group"></div>
+    <button id="home" class="glass" type="button">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="3.2"/><path d="M9 1.5v3M9 13.5v3M1.5 9h3M13.5 9h3"/></svg>
+    </button>
+    <button id="gyro" class="glass" type="button" aria-pressed="false" hidden>
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3.5" width="6" height="11" rx="1.4"/><path d="M2.2 7.2A7.4 7.4 0 0 1 4 4.4M2.2 7.2l-.4-2M2.2 7.2l2-.3M15.8 10.8a7.4 7.4 0 0 1-1.8 2.8M15.8 10.8l.4 2M15.8 10.8l-2 .3"/></svg>
+    </button>
+    <div id="stick" class="glass" hidden><i></i></div>
+    <div id="lift" hidden>
+      <button id="lift-up" class="glass" type="button"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l5-5 5 5"/></svg></button>
+      <button id="lift-down" class="glass" type="button"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg></button>
+    </div>
+    <div id="tally" hidden><i></i><span id="tally-time">0:00.0</span></div>
+    <div id="count" hidden></div>
+    <div id="veil" hidden><div><b id="veil-text"></b><progress id="veil-bar" max="1" value="0"></progress><button id="veil-stop" type="button"></button></div></div>
+
+    <div id="sheet" hidden>
+      <div class="field"><span data-t="format"></span><div class="seg mono" id="ratios"></div></div>
+      <div class="field"><span data-t="look"></span><div class="seg" id="looks"></div></div>
+      <div class="field"><span data-t="handheld"></span><div class="seg" id="shakes"></div></div>
+      <div class="field"><span data-t="scene"></span><div class="links"><button id="scene-copy" type="button"></button><button id="scene-undo" type="button" hidden></button><button id="scene-reset" type="button" hidden></button></div></div>
+    </div>
+  </div>
+
+  <div id="dock">
+    <div id="panel" hidden>
+      <select id="target" hidden></select>
+      <div id="moves" hidden></div>
+      <div id="railbox" hidden>
+        <label><span data-t="h0"></span><input id="rail-h0" type="range" min="0.3" max="25" step="0.1" value="1.6"><output id="rail-h0-out"></output></label>
+        <label><span data-t="h1"></span><input id="rail-h1" type="range" min="0.3" max="25" step="0.1" value="1.6"><output id="rail-h1-out"></output></label>
+        <div class="seg" id="aims"></div>
+      </div>
+    </div>
+    <div id="bar">
+      <div class="seg" id="modes" role="tablist"></div>
+      <button id="play" type="button"></button>
+      <input id="time" type="range" min="0" max="1000" value="0" step="1">
+      <span id="clock"><b id="clock-now">0:00.0</b> / <span id="clock-end">0:00.0</span></span>
+      <div id="act">
+        <button id="redo" class="big" type="button" hidden></button>
+        <button id="save" class="big" type="button" hidden></button>
+        <button id="rec" class="big" type="button"><i></i><span id="rec-text"></span></button>
+      </div>
+    </div>
+  </div>
+  <div id="toast" hidden role="status"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+<script>
+/* Previs Studio — shared helpers. Everything hangs off the global PV. */
+window.PV = window.PV || {};
+(function (PV) {
+  'use strict';
+
+  PV.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  PV.lerp = (a, b, t) => a + (b - a) * t;
+  PV.smooth = (t) => { t = PV.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+  PV.deg = (d) => d * Math.PI / 180;
+  PV.num = (v, d) => { const n = typeof v === 'string' ? parseFloat(v) : v; return Number.isFinite(n) ? n : d; };
+
+  /* Shortest signed difference between two angles (radians). */
+  PV.angDiff = (a, b) => {
+    let d = (b - a) % (Math.PI * 2);
+    if (d > Math.PI) d -= Math.PI * 2;
+    if (d < -Math.PI) d += Math.PI * 2;
+    return d;
+  };
+
+  /* Deterministic random numbers, so a scene looks the same on every load and in every render. */
+  PV.rng = (seed) => {
+    let s = (seed | 0) || 1;
+    return () => {
+      s |= 0; s = (s + 0x6D2B79F5) | 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  /* Smooth, repeatable 1D noise in -1..1 (used for handheld camera shake). */
+  PV.noise1 = (x, seed) => {
+    const i = Math.floor(x), f = x - i;
+    const h = (n) => {
+      let v = Math.sin((n + seed * 57.13) * 127.1) * 43758.5453;
+      return (v - Math.floor(v)) * 2 - 1;
+    };
+    return PV.lerp(h(i), h(i + 1), f * f * (3 - 2 * f));
+  };
+
+  /* Accepts [x,z] (on the ground) or [x,y,z]; always returns [x,y,z]. */
+  PV.vec3 = (p, d) => {
+    if (!Array.isArray(p)) return d ? d.slice() : [0, 0, 0];
+    if (p.length === 2) return [PV.num(p[0], 0), 0, PV.num(p[1], 0)];
+    return [PV.num(p[0], 0), PV.num(p[1], 0), PV.num(p[2], 0)];
+  };
+
+  PV.fmtTime = (t) => {
+    t = Math.max(0, t);
+    const m = Math.floor(t / 60), s = Math.floor(t % 60), d = Math.floor((t * 10) % 10);
+    return m + ':' + String(s).padStart(2, '0') + '.' + d;
+  };
+
+  /* Storage that never throws (private windows, previews and thumbnails can refuse it). */
+  PV.store = {
+    get(key) { try { const v = localStorage.getItem('pv.' + key); return v ? JSON.parse(v) : null; } catch (e) { return null; } },
+    set(key, val) { try { localStorage.setItem('pv.' + key, JSON.stringify(val)); } catch (e) { /* not available here */ } },
+    del(key) { try { localStorage.removeItem('pv.' + key); } catch (e) { /* not available here */ } }
+  };
+
+  /* Interface language follows the viewer's browser: Portuguese, otherwise English. */
+  PV.lang = (navigator.language || 'en').toLowerCase().startsWith('pt') ? 'pt' : 'en';
+  PV.strings = {};
+  PV.t = (key) => {
+    const row = PV.strings[key];
+    return row ? (row[PV.lang] || row.en) : key;
+  };
+
+  PV.el = (id) => document.getElementById(id);
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — renderer, sky, ground, light, and the builder that turns scene objects into meshes. */
+(function (PV) {
+  'use strict';
+  const T = THREE;
+  const W = PV.world = { clay: false };
+
+  /* Unit shapes. Each sits on the ground (base at y = 0) so "pos" always means where the object stands. */
+  const geos = {};
+  function unit(name) {
+    if (geos[name]) return geos[name];
+    let g;
+    if (name === 'box') g = new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
+    else if (name === 'cyl') g = new T.CylinderGeometry(0.5, 0.5, 1, 14).translate(0, 0.5, 0);
+    else if (name === 'cone') g = new T.ConeGeometry(0.5, 1, 10).translate(0, 0.5, 0);
+    else if (name === 'sphere') g = new T.SphereGeometry(0.5, 14, 10).translate(0, 0.5, 0);
+    else if (name === 'ico') g = new T.IcosahedronGeometry(0.5, 0).translate(0, 0.5, 0);
+    else if (name === 'wheel') g = new T.CylinderGeometry(0.5, 0.5, 1, 14).rotateZ(Math.PI / 2);
+    else if (name === 'wedge') {
+      /* A ramp: full height at the back (-z), zero at the front (+z). */
+      const s = new T.Shape();
+      s.moveTo(-0.5, 0); s.lineTo(0.5, 0); s.lineTo(-0.5, 1); s.closePath();
+      g = new T.ExtrudeGeometry(s, { depth: 1, bevelEnabled: false }).translate(0, 0, -0.5).rotateY(-Math.PI / 2);
+    } else g = new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
+    g = g.index ? g.toNonIndexed() : g;
+    if (name === 'ico' || name === 'wedge' || name === 'cone') g.computeVertexNormals();
+    return (geos[name] = g);
+  }
+  W.unit = unit;
+
+  const SHAPES = { box: 'box', cube: 'box', cylinder: 'cyl', cyl: 'cyl', cone: 'cone', sphere: 'sphere', ball: 'sphere', ico: 'ico', wedge: 'wedge', ramp: 'wedge' };
+
+  /* Clay look: every surface becomes a near-uniform grey, like Blender's solid viewport. */
+  const tmpC = new T.Color();
+  W.color = (hex, fallback) => {
+    try { tmpC.set(hex || fallback || '#9a9a9a'); } catch (e) { tmpC.set(fallback || '#9a9a9a'); }
+    if (W.clay) {
+      const hsl = {}; tmpC.getHSL(hsl);
+      tmpC.setHSL(0.09, 0.03, 0.42 + hsl.l * 0.34);
+    }
+    return tmpC;
+  };
+
+  const mats = new Map();
+  W.mat = (hex) => {
+    const key = (W.clay ? 'c' : 'n') + hex;
+    if (!mats.has(key)) mats.set(key, new T.MeshLambertMaterial({ color: W.color(hex).clone() }));
+    return mats.get(key);
+  };
+
+  function matrixOf(o, sizeAsScale) {
+    const p = PV.vec3(o.pos);
+    const r = o.rot;
+    const e = Array.isArray(r) ? new T.Euler(PV.deg(PV.num(r[0], 0)), PV.deg(PV.num(r[1], 0)), PV.deg(PV.num(r[2], 0)), 'YXZ')
+      : new T.Euler(0, PV.deg(PV.num(r, 0)), 0);
+    let s = [1, 1, 1];
+    const src = sizeAsScale ? o.size : o.scale;
+    if (Array.isArray(src)) s = [PV.num(src[0], 1), PV.num(src[1], 1), PV.num(src[2] === undefined ? src[0] : src[2], 1)];
+    else if (Number.isFinite(PV.num(src, NaN))) s = [PV.num(src, 1), PV.num(src, 1), PV.num(src, 1)];
+    return new T.Matrix4().compose(new T.Vector3(p[0], p[1], p[2]), new T.Quaternion().setFromEuler(e), new T.Vector3(s[0], s[1], s[2]));
+  }
+
+  /* Turns one scene object (primitive, preset, group, row or scatter) into flat parts: {geo, matrix, color}. */
+  function expand(o, parent, out, depth) {
+    if (!o || typeof o !== 'object' || depth > 6 || out.length > 6000) return;
+    const type = String(o.type || 'box').toLowerCase();
+    if (SHAPES[type]) {
+      let size = o.size;
+      if (type === 'sphere' || type === 'ball' || type === 'ico') {
+        const d = Array.isArray(size) ? size : [PV.num(size, 1)];
+        size = [d[0], d[1] === undefined ? d[0] : d[1], d[2] === undefined ? d[0] : d[2]];
+      } else if (type !== 'box' && type !== 'cube' && type !== 'wedge' && type !== 'ramp') {
+        const d = Array.isArray(size) ? size : [PV.num(size, 1), PV.num(size, 1)];
+        size = d.length >= 3 ? d : [d[0], d[1] === undefined ? d[0] : d[1], d[0]];
+      } else if (!Array.isArray(size)) size = [PV.num(size, 1), PV.num(size, 1), PV.num(size, 1)];
+      const m = parent.clone().multiply(matrixOf({ pos: o.pos, rot: o.rot, size }, true));
+      out.push({ geo: SHAPES[type], matrix: m, color: o.color || '#9a9a9a' });
+      return;
+    }
+    /* On a scatter, "scale" is the random size range of its items, not a stretch of the whole field. */
+    const m = parent.clone().multiply(matrixOf(type === 'scatter' ? { pos: o.pos, rot: o.rot } : o, false));
+    if (type === 'wheelpart') { out.push({ geo: 'wheel', matrix: m, color: o.color || '#26262a', wheel: PV.num(o.radius, 0.33) }); return; }
+    let kids = null;
+    if (type === 'group') kids = o.children;
+    else if (type === 'row') kids = PV.props.row(o);
+    else if (type === 'scatter') kids = PV.props.scatter(o);
+    else if (PV.props.presets[type]) kids = PV.props.presets[type](o);
+    else kids = [{ type: 'box', size: Array.isArray(o.size) ? o.size : [1, 1, 1], color: o.color }];
+    if (Array.isArray(kids)) for (const k of kids) expand(k, m, out, depth + 1);
+  }
+  W.expand = (o, parent) => { const out = []; expand(o, parent || new T.Matrix4(), out, 0); return out; };
+
+  /* Many static parts become one mesh with per-vertex colour: a whole city costs one draw call. */
+  function batch(parts) {
+    let n = 0;
+    for (const p of parts) n += unit(p.geo).attributes.position.count;
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    const v = new T.Vector3(), nm = new T.Matrix3();
+    let k = 0;
+    for (const p of parts) {
+      const g = unit(p.geo), gp = g.attributes.position, gn = g.attributes.normal;
+      nm.getNormalMatrix(p.matrix);
+      const c = W.color(p.color);
+      const r = c.r, gr = c.g, b = c.b;
+      for (let i = 0; i < gp.count; i++, k += 3) {
+        v.fromBufferAttribute(gp, i).applyMatrix4(p.matrix);
+        pos[k] = v.x; pos[k + 1] = v.y; pos[k + 2] = v.z;
+        v.fromBufferAttribute(gn, i).applyMatrix3(nm).normalize();
+        nor[k] = v.x; nor[k + 1] = v.y; nor[k + 2] = v.z;
+        col[k] = r; col[k + 1] = gr; col[k + 2] = b;
+      }
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.BufferAttribute(pos, 3));
+    g.setAttribute('normal', new T.BufferAttribute(nor, 3));
+    g.setAttribute('color', new T.BufferAttribute(col, 3));
+    const mesh = new T.Mesh(g, new T.MeshLambertMaterial({ vertexColors: true }));
+    mesh.castShadow = mesh.receiveShadow = true;
+    return mesh;
+  }
+  W.batch = batch;
+
+  /* A moving object keeps its parts as separate meshes inside one group, so wheels can spin. */
+  W.group = (parts) => {
+    const g = new T.Group(), fixed = [];
+    g.userData.wheels = [];
+    for (const p of parts) {
+      if (!p.wheel) { fixed.push(p); continue; }
+      const m = new T.Mesh(unit('wheel'), W.mat(p.color));
+      p.matrix.decompose(m.position, m.quaternion, m.scale);
+      m.castShadow = true;
+      m.userData.radius = p.wheel;
+      const spin = new T.Group(); spin.position.copy(m.position); spin.quaternion.copy(m.quaternion);
+      m.position.set(0, 0, 0); m.quaternion.identity();
+      spin.add(m); g.add(spin); g.userData.wheels.push(m);
+    }
+    if (fixed.length) g.add(batch(fixed));
+    return g;
+  };
+
+  /* ---------- renderer and environment ---------- */
+
+  W.init = (canvas) => {
+    const r = W.renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    r.shadowMap.enabled = true;
+    r.shadowMap.type = T.PCFSoftShadowMap;
+    W.scene = new T.Scene();
+    W.content = new T.Group();
+    W.scene.add(W.content);
+
+    W.hemi = new T.HemisphereLight(0xffffff, 0x888888, 1.5);
+    W.sun = new T.DirectionalLight(0xffffff, 2.4);
+    W.sun.castShadow = true;
+    W.sun.shadow.mapSize.set(2048, 2048);
+    const sc = W.sun.shadow.camera;
+    sc.left = -42; sc.right = 42; sc.top = 42; sc.bottom = -42; sc.near = 1; sc.far = 400;
+    W.sun.shadow.bias = -0.0005; W.sun.shadow.normalBias = 0.04;
+    W.scene.add(W.hemi, W.sun, W.sun.target);
+
+    const dome = new T.SphereGeometry(1500, 24, 14);
+    dome.setAttribute('color', new T.BufferAttribute(new Float32Array(dome.attributes.position.count * 3), 3));
+    W.sky = new T.Mesh(dome, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide, fog: false, depthWrite: false }));
+    W.sky.renderOrder = -1;
+    W.scene.add(W.sky);
+
+    W.gridTex = gridTexture();
+    W.gridTex.anisotropy = r.capabilities.getMaxAnisotropy();
+    W.ground = new T.Mesh(new T.PlaneGeometry(6000, 6000).rotateX(-Math.PI / 2), new T.MeshLambertMaterial({ color: 0x999999 }));
+    W.ground.receiveShadow = true;
+    W.scene.add(W.ground);
+  };
+
+  /* A faint metre grid on the ground gives the eye (and the video model) something to read motion against. */
+  function gridTexture() {
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, 512, 512);
+    const step = 512 / 10;
+    for (let i = 0; i <= 10; i++) {
+      const major = i % 5 === 0;
+      x.fillStyle = major ? 'rgba(0,0,0,0.20)' : 'rgba(0,0,0,0.085)';
+      const w = major ? 3 : 2, p = Math.round(i * step) - w / 2;
+      x.fillRect(p, 0, w, 512); x.fillRect(0, p, 512, w);
+    }
+    const t = new T.CanvasTexture(c);
+    t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(600, 600);
+    t.colorSpace = T.SRGBColorSpace;
+    return t;
+  }
+
+  W.setEnv = (env) => {
+    env = env || {};
+    const sky = Array.isArray(env.sky) ? env.sky : ['#7fa9d6', '#dfe6ea'];
+    const top = W.color(sky[0], '#7fa9d6').clone(), hor = W.color(sky[1], '#dfe6ea').clone();
+    const g = W.sky.geometry, p = g.attributes.position, c = g.attributes.color, mix = new T.Color();
+    for (let i = 0; i < p.count; i++) {
+      const h = PV.clamp(p.getY(i) / 1500, 0, 1);
+      mix.copy(hor).lerp(top, Math.pow(h, 0.55));
+      c.setXYZ(i, mix.r, mix.g, mix.b);
+    }
+    c.needsUpdate = true;
+    const fog = PV.clamp(PV.num(env.fog, 0.35), 0, 1);
+    W.scene.fog = new T.FogExp2(hor.getHex(), 0.0006 + fog * 0.009);
+    W.scene.background = hor;
+
+    const gm = W.ground.material;
+    gm.color.copy(W.color(env.ground, '#8f9388'));
+    gm.map = env.grid === false ? null : W.gridTex;
+    gm.needsUpdate = true;
+
+    const sun = Array.isArray(env.sun) ? env.sun : [135, 42];
+    const az = PV.deg(PV.num(sun[0], 135)), el = PV.deg(PV.clamp(PV.num(sun[1], 42), 6, 88));
+    W.sunDir = new T.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+    const night = env.night ? 0.45 : 1;
+    W.hemi.color.copy(top).lerp(new T.Color(0xffffff), 0.55);
+    W.hemi.groundColor.copy(gm.color).multiplyScalar(0.75);
+    W.hemi.intensity = 2.3 * night;
+    W.sun.intensity = 2.7 * night * (0.6 + 0.4 * Math.sin(el));
+  };
+
+  /* The shadow map follows the action so it stays sharp anywhere on a wide map. */
+  W.focusShadow = (x, z) => {
+    const texel = 84 / 2048;
+    x = Math.round(x / texel) * texel; z = Math.round(z / texel) * texel;
+    W.sun.target.position.set(x, 0, z);
+    W.sun.position.set(x + W.sunDir.x * 160, W.sunDir.y * 160, z + W.sunDir.z * 160);
+    W.sun.target.updateMatrixWorld();
+  };
+
+  W.clear = () => {
+    while (W.content.children.length) {
+      const c = W.content.children.pop();
+      c.traverse((n) => { if (n.geometry && !Object.values(geos).includes(n.geometry) && !n.userData.shared) n.geometry.dispose(); });
+    }
+    mats.clear();
+  };
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — ready-made objects. Each preset expands into plain boxes, cylinders, cones and spheres. */
+(function (PV) {
+  'use strict';
+  const P = PV.props = { presets: {}, avoid: [] };
+  const N = PV.num;
+  const B = (pos, size, color, rot) => ({ type: 'box', pos, size, color, rot });
+  const C = (pos, size, color, rot) => ({ type: 'cylinder', pos, size, color, rot });
+  const K = (pos, size, color, rot) => ({ type: 'cone', pos, size, color, rot });
+  const I = (pos, size, color, rot) => ({ type: 'ico', pos, size, color, rot });
+  const Wh = (x, y, z, r, w) => ({ type: 'wheelpart', pos: [x, y, z], scale: [w, r * 2, r * 2], radius: r });
+  const dims = (o, w, h, d) => { const s = Array.isArray(o.size) ? o.size : []; return [N(s[0], w), N(s[1], h), N(s[2], d)]; };
+  const one = (o, d) => (Array.isArray(o.size) ? N(o.size[1] === undefined ? o.size[0] : o.size[1], d) : N(o.size, d));
+  const pr = P.presets;
+
+  /* ----- nature ----- */
+  pr.tree = (o) => { const h = one(o, 5), c = o.color || '#5c8a4c';
+    return [C([0, 0, 0], [h * 0.07, h * 0.5], '#6b4c36'), I([0, h * 0.34, 0], [h * 0.62, h * 0.5, h * 0.62], c, [0, 20, 0]),
+      I([h * 0.1, h * 0.6, h * 0.05], [h * 0.46, h * 0.4, h * 0.46], c, [0, 70, 0])]; };
+  pr.pine = (o) => { const h = one(o, 7), c = o.color || '#3f6b4a';
+    return [C([0, 0, 0], [h * 0.05, h * 0.3], '#5e4433'), K([0, h * 0.18, 0], [h * 0.42, h * 0.42], c), K([0, h * 0.42, 0], [h * 0.33, h * 0.36], c), K([0, h * 0.64, 0], [h * 0.23, h * 0.36], c)]; };
+  pr.palm = (o) => { const h = one(o, 7), c = o.color || '#5d8f52', out = [C([0, 0, 0], [h * 0.045, h], '#8a6f52', [0, 0, 4])];
+    for (let i = 0; i < 6; i++) out.push({ type: 'group', pos: [-h * 0.07, h * 0.98, 0], rot: [0, i * 60, 0], children: [B([0, 0, h * 0.02], [h * 0.07, h * 0.012, h * 0.3], c, [22, 0, 0])] });
+    return out; };
+  pr.bush = (o) => { const h = one(o, 1.1), c = o.color || '#618a4f';
+    return [I([0, -h * 0.15, 0], [h * 1.3, h, h * 1.3], c), I([h * 0.5, -h * 0.1, h * 0.2], [h * 0.9, h * 0.75, h * 0.9], c, [0, 40, 0])]; };
+  pr.rock = (o) => { const h = one(o, 1.2), c = o.color || '#8b8a86';
+    return [I([0, -h * 0.25, 0], [h * 1.5, h * 1.25, h * 1.2], c, [8, 33, -6])]; };
+  pr.mountain = (o) => { const s = dims(o, 220, 90, 220), c = o.color || '#8e9499';
+    return [I([0, -s[1] * 0.75, 0], [s[0], s[1] * 1.75, s[2]], c, [0, 17, 0]), I([s[0] * 0.3, -s[1] * 0.6, s[2] * 0.12], [s[0] * 0.66, s[1] * 1.25, s[2] * 0.7], c, [6, 52, 0]),
+      I([-s[0] * 0.33, -s[1] * 0.5, -s[2] * 0.08], [s[0] * 0.5, s[1] * 0.95, s[2] * 0.55], c, [-5, 95, 4])]; };
+  pr.water = (o) => { const s = dims(o, 40, 0, 40); return [B([0, 0.02, 0], [s[0], 0.04, s[2]], o.color || '#5f93b8')]; };
+
+  /* ----- town ----- */
+  pr.building = (o) => { const s = dims(o, 12, 24, 12), c = o.color || '#a9a59d', win = o.color2 || '#4d5a66', out = [B([0, 0, 0], s, c)];
+    const floors = Math.min(40, Math.floor(s[1] / 3.2));
+    for (let f = 0; f < floors; f++) { const y = 1.3 + f * 3.2;
+      out.push(B([0, y, 0], [s[0] + 0.06, 1.3, s[2] * 0.86], win), B([0, y, 0], [s[0] * 0.86, 1.3, s[2] + 0.06], win)); }
+    out.push(B([0, s[1], 0], [s[0] + 0.5, 0.5, s[2] + 0.5], c));
+    return out; };
+  pr.house = (o) => { const s = dims(o, 8, 3.2, 7), c = o.color || '#d6cbb8', roof = o.color2 || '#8a5446';
+    return [B([0, 0, 0], s, c), { type: 'wedge', pos: [0, s[1], s[2] * 0.26], size: [s[0] + 0.6, s[1] * 0.55, s[2] * 0.52 + 0.3], color: roof },
+      { type: 'wedge', pos: [0, s[1], -s[2] * 0.26], rot: 180, size: [s[0] + 0.6, s[1] * 0.55, s[2] * 0.52 + 0.3], color: roof },
+      B([s[0] * 0.2, 0, s[2] / 2], [1, 2.1, 0.08], '#5a4334'), B([-s[0] * 0.22, 1.1, s[2] / 2], [1.4, 1.1, 0.08], '#4d5a66')]; };
+  pr.lamp = (o) => { const h = one(o, 6);
+    return [C([0, 0, 0], [0.16, h], '#55585c'), B([0, h - 0.12, 0.55], [0.12, 0.12, 1.2], '#55585c'), B([0, h - 0.24, 1.05], [0.34, 0.12, 0.5], '#f3e8c2')]; };
+  pr.sign = (o) => { const s = dims(o, 2, 3, 0.1);
+    return [C([0, 0, 0], [0.12, s[1]], '#666a6e'), B([0, s[1] - 1.2, 0.08], [s[0], 1.2, 0.08], o.color || '#d9d2c2')]; };
+  pr.bench = () => [B([0, 0.4, 0], [1.7, 0.07, 0.48], '#8c6f50'), B([0, 0.47, -0.22], [1.7, 0.45, 0.06], '#8c6f50', [-10, 0, 0]),
+    B([-0.72, 0, 0], [0.08, 0.4, 0.44], '#55585c'), B([0.72, 0, 0], [0.08, 0.4, 0.44], '#55585c')];
+  pr.table = (o) => { const s = dims(o, 1.6, 0.75, 0.9), c = o.color || '#9a7b58', x = s[0] / 2 - 0.08, z = s[2] / 2 - 0.08;
+    return [B([0, s[1] - 0.06, 0], [s[0], 0.06, s[2]], c)].concat([[x, z], [-x, z], [x, -z], [-x, -z]].map((p) => B([p[0], 0, p[1]], [0.07, s[1] - 0.06, 0.07], c))); };
+  pr.chair = (o) => { const c = o.color || '#7b6a58';
+    return [B([0, 0.42, 0], [0.45, 0.05, 0.45], c), B([0, 0.47, -0.2], [0.45, 0.48, 0.05], c)].concat([[0.19, 0.19], [-0.19, 0.19], [0.19, -0.19], [-0.19, -0.19]].map((p) => B([p[0], 0, p[1]], [0.05, 0.42, 0.05], c))); };
+  pr.crate = (o) => { const s = one(o, 1); return [B([0, 0, 0], [s, s, s], o.color || '#a5835a'), B([0, s * 0.44, 0], [s * 1.03, s * 0.12, s * 1.03], '#8a6a45')]; };
+  pr.barrel = (o) => { const h = one(o, 1); return [C([0, 0, 0], [h * 0.66, h], o.color || '#5f7d8c'), C([0, h * 0.3, 0], [h * 0.7, h * 0.06], '#3f4a52'), C([0, h * 0.68, 0], [h * 0.7, h * 0.06], '#3f4a52')]; };
+  pr.stairs = (o) => { const s = dims(o, 2.4, 2.4, 3.6), n = Math.max(2, Math.round(s[1] / 0.2)), out = [];
+    for (let i = 0; i < n; i++) out.push(B([0, 0, -s[2] / 2 + (i + 0.5) * s[2] / n], [s[0], (i + 1) * s[1] / n, s[2] / n], o.color || '#aaa69e'));
+    return out; };
+  pr.tent = (o) => { const s = dims(o, 3, 2, 3.4), c = o.color || '#c9a35c';
+    return [{ type: 'wedge', pos: [s[0] * 0.25, 0, 0], rot: 90, size: [s[2], s[1], s[0] / 2], color: c }, { type: 'wedge', pos: [-s[0] * 0.25, 0, 0], rot: -90, size: [s[2], s[1], s[0] / 2], color: c }]; };
+  pr.tower = (o) => { const s = dims(o, 5, 16, 5), c = o.color || '#a8a297'; return [C([0, 0, 0], [s[0], s[1]], c), K([0, s[1], 0], [s[0] * 1.25, s[0] * 0.9], o.color2 || '#7d5348')]; };
+  pr.arch = (o) => { const s = dims(o, 4, 4, 0.8), c = o.color || '#b3aca0';
+    return [B([-s[0] / 2, 0, 0], [0.7, s[1], s[2]], c), B([s[0] / 2, 0, 0], [0.7, s[1], s[2]], c), B([0, s[1], 0], [s[0] + 1.3, 0.7, s[2]], c)]; };
+
+  /* ----- things laid out between two points ----- */
+  const span = (o) => { const a = PV.vec3(o.from), b = PV.vec3(o.to, [10, 0, 0]), dx = b[0] - a[0], dz = b[2] - a[2];
+    return { a, b, len: Math.hypot(dx, dz) || 1, yaw: Math.atan2(dx, dz) * 180 / Math.PI, mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2] }; };
+  pr.wall = (o) => { const s = span(o), h = N(o.height, 3), t = N(o.thickness, 0.3);
+    return [B(s.mid, [t, h, s.len + t], o.color || '#b5b0a6', s.yaw)]; };
+  pr.road = (o) => { const s = span(o), w = N(o.width, 8), out = [B([s.mid[0], 0.015, s.mid[2]], [w, 0.03, s.len], o.color || '#55575b', s.yaw)];
+    if (o.lines !== false) { const n = Math.min(160, Math.floor(s.len / 8));
+      for (let i = 0; i < n; i++) { const f = (i + 0.5) / n; out.push(B([PV.lerp(s.a[0], s.b[0], f), 0.03, PV.lerp(s.a[2], s.b[2], f)], [0.16, 0.02, 3], '#d9d6cc', s.yaw)); } }
+    return out; };
+  pr.path = (o) => { const s = span(o); return [B([s.mid[0], 0.012, s.mid[2]], [N(o.width, 2), 0.024, s.len], o.color || '#b9ad94', s.yaw)]; };
+  pr.river = (o) => { const s = span(o); return [B([s.mid[0], 0.02, s.mid[2]], [N(o.width, 12), 0.04, s.len], o.color || '#5f93b8', s.yaw)]; };
+  pr.fence = (o) => { const s = span(o), h = N(o.height, 1.2), c = o.color || '#8f7a61', n = Math.max(1, Math.round(s.len / 2.2)), out = [];
+    for (let i = 0; i <= n; i++) { const f = i / n; out.push(B([PV.lerp(s.a[0], s.b[0], f), 0, PV.lerp(s.a[2], s.b[2], f)], [0.1, h, 0.1], c, s.yaw)); }
+    out.push(B([s.mid[0], h * 0.8, s.mid[2]], [0.05, 0.1, s.len], c, s.yaw), B([s.mid[0], h * 0.42, s.mid[2]], [0.05, 0.1, s.len], c, s.yaw));
+    return out; };
+
+  /* ----- vehicles: they face +z, wheels spin when they move ----- */
+  const STYLES = {
+    sedan: [1.8, 4.4, 0.62, 1.42, -0.15, 1.9], suv: [1.95, 4.7, 0.8, 1.75, -0.2, 2.5], sports: [1.9, 4.3, 0.5, 1.18, -0.3, 1.5],
+    pickup: [1.95, 5.3, 0.78, 1.72, 0.55, 1.7], van: [1.95, 5, 0.85, 2.05, 0.1, 3.6], bus: [2.5, 11, 0.95, 3.1, 0, 10], truck: [2.5, 8, 1.0, 2.7, 2.7, 2]
+  };
+  pr.car = (o) => {
+    const st = STYLES[String(o.style || 'sedan').toLowerCase()] || STYLES.sedan;
+    const w = st[0], len = st[1], belt = st[2], top = st[3], cz = st[4], cl = st[5];
+    const c = o.color || '#b8443c', dark = '#2c2f33', r = belt > 0.9 ? 0.48 : 0.34, g = r * 0.75;
+    const out = [B([0, g, 0], [w, belt - g + 0.25, len], c), B([0, top - 0.08, cz], [w * 0.92, 0.08, cl], c)];
+    const px = w * 0.44, z0 = cz - cl / 2 + 0.05, z1 = cz + cl / 2 - 0.05, ph = top - belt - 0.3;
+    if (belt > 0.82 && o.style !== 'pickup' && o.style !== 'suv') {
+      out.push(B([0, belt + 0.24, cz], [w * 0.94, ph, cl], c), B([0, belt + 0.5, cz], [w * 0.96, ph * 0.42, cl * 0.9], '#3d4852'), B([0, belt + 0.5, cz + cl / 2], [w * 0.8, ph * 0.42, 0.06], '#3d4852'));
+    } else for (const x of [px, -px]) for (const z of [z0, z1]) out.push(B([x, belt + 0.24, z], [0.07, ph, 0.07], c));
+    out.push(B([0, g + 0.02, 0], [w * 0.8, belt - g, len * 0.6], dark));
+    const ax = len * 0.31;
+    for (const x of [w / 2 - 0.1, -w / 2 + 0.1]) for (const z of [ax, -ax]) out.push(Wh(x, r, z, r, 0.24));
+    out.push(B([w * 0.32, belt * 0.72, len / 2], [0.32, 0.14, 0.05], '#f3ecd2'), B([-w * 0.32, belt * 0.72, len / 2], [0.32, 0.14, 0.05], '#f3ecd2'),
+      B([w * 0.32, belt * 0.76, -len / 2], [0.32, 0.12, 0.05], '#b2332d'), B([-w * 0.32, belt * 0.76, -len / 2], [0.32, 0.12, 0.05], '#b2332d'));
+    if (o.style === 'truck') out.push(B([0, 1.15, -1.35], [w, 2.6, len - 2.9], o.color2 || '#c9c6bd'));
+    return out; };
+  pr.motorcycle = (o) => { const c = o.color || '#8c3a32';
+    return [Wh(0, 0.32, 0.72, 0.32, 0.13), Wh(0, 0.32, -0.72, 0.32, 0.15), B([0, 0.42, 0], [0.24, 0.34, 1.05], '#33363a'), B([0, 0.72, 0.18], [0.3, 0.2, 0.5], c),
+      B([0, 0.74, -0.38], [0.28, 0.08, 0.6], '#26282b'), B([0, 0.5, 0.62], [0.07, 0.62, 0.07], '#777b80', [-22, 0, 0]), B([0, 1.04, 0.5], [0.66, 0.05, 0.05], '#33363a')]; };
+  pr.bicycle = (o) => { const c = o.color || '#3f6f8f';
+    return [Wh(0, 0.34, 0.52, 0.34, 0.04), Wh(0, 0.34, -0.52, 0.34, 0.04), B([0, 0.52, 0], [0.04, 0.05, 0.95], c), B([0, 0.52, -0.2], [0.04, 0.42, 0.04], c),
+      B([0, 0.92, -0.24], [0.13, 0.04, 0.26], '#26282b'), B([0, 0.52, 0.44], [0.04, 0.5, 0.04], c, [-14, 0, 0]), B([0, 1.0, 0.36], [0.5, 0.04, 0.04], '#33363a')]; };
+
+  /* ----- repetition helpers ----- */
+  P.row = (o) => { const s = span(o), n = Math.max(1, Math.min(200, Math.round(N(o.count, 5)))), out = [];
+    for (let i = 0; i < n; i++) { const f = n === 1 ? 0.5 : i / (n - 1);
+      out.push({ type: 'group', pos: [PV.lerp(s.a[0], s.b[0], f), PV.lerp(s.a[1], s.b[1], f), PV.lerp(s.a[2], s.b[2], f)], rot: N(o.face, 0), children: [o.of || { type: 'box' }] }); }
+    return out; };
+
+  function nearPath(x, z, clear) {
+    for (const s of P.avoid) {
+      const dx = s[2] - s[0], dz = s[3] - s[1], l2 = dx * dx + dz * dz;
+      const t = l2 ? PV.clamp(((x - s[0]) * dx + (z - s[1]) * dz) / l2, 0, 1) : 0;
+      if (Math.hypot(x - s[0] - dx * t, z - s[1] - dz * t) < clear) return true;
+    }
+    return false;
+  }
+  /* Scatter keeps a corridor clear around every character and vehicle route, so nothing grows on the action. */
+  P.scatter = (o) => {
+    const a = Array.isArray(o.area) && o.area.length >= 4 ? o.area.map((v) => N(v, 0)) : [-60, -60, 60, 60];
+    const n = Math.max(0, Math.min(500, Math.round(N(o.count, 20)))), rnd = PV.rng(N(o.seed, 7) * 9973 + n);
+    const sc = Array.isArray(o.scale) ? o.scale : [0.75, 1.3], clear = N(o.clear, 2.5), out = [];
+    const holes = Array.isArray(o.avoid) ? o.avoid : [];
+    for (let i = 0, tries = 0; i < n && tries < n * 12; tries++) {
+      const x = PV.lerp(a[0], a[2], rnd()), z = PV.lerp(a[1], a[3], rnd()), s = PV.lerp(N(sc[0], 0.75), N(sc[1], 1.3), rnd()), yaw = rnd() * 360;
+      if (nearPath(x, z, clear)) continue;
+      if (holes.some((h) => Array.isArray(h) && Math.hypot(x - N(h[0], 0), z - N(h[1], 0)) < N(h[2], 3))) continue;
+      out.push({ type: 'group', pos: [x, 0, z], rot: yaw, scale: s, children: [o.of || { type: 'tree' }] }); i++;
+    }
+    return out; };
+
+  P.names = () => Object.keys(pr);
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — the mannequin: a jointed figure built from capsules, posed by a flat list of angles. */
+(function (PV) {
+  'use strict';
+  const T = THREE;
+  const R = PV.rig = {};
+
+  /* Every number a pose can set. Angles are radians; "forward", "up" and "inward" are positive. */
+  R.KEYS = ['lift', 'shiftZ', 'tiltX', 'tiltZ', 'sway', 'lean', 'hipYaw', 'hipRoll', 'spine', 'chest', 'twist', 'side', 'nod', 'turn', 'headTilt',
+    'aSwL', 'aSwR', 'aAbL', 'aAbR', 'aTwL', 'aTwR', 'elL', 'elR', 'lSwL', 'lSwR', 'lAbL', 'lAbR', 'knL', 'knR', 'toeL', 'toeR', 'hipY'];
+  R.blank = () => { const p = {}; for (const k of R.KEYS) p[k] = 0; p.hipY = -1; return p; };
+  R.mix = (a, b, t, out) => {
+    for (const k of R.KEYS) out[k] = a[k] + (b[k] - a[k]) * t;
+    /* hipY < 0 means "stand on your feet"; blend that with a fixed height by resolving it later. */
+    out.hipAuto = (a.hipY < 0 ? 1 : 0) * (1 - t) + (b.hipY < 0 ? 1 : 0) * t;
+    out.hipY = Math.max(0, a.hipY) * (1 - t) + Math.max(0, b.hipY) * t;
+    return out;
+  };
+
+  const cap = (r, len) => new T.CapsuleGeometry(r, len, 4, 10).translate(0, -len / 2, 0);
+  const ball = (sx, sy, sz) => new T.SphereGeometry(0.5, 14, 10).scale(sx, sy, sz);
+
+  R.build = (spec) => {
+    spec = spec || {};
+    const s = PV.clamp(PV.num(spec.height, 1.75), 0.6, 3) / 1.75, b = PV.clamp(PV.num(spec.build, 1), 0.7, 1.6);
+    const col = spec.colors || {}, W = PV.world;
+    const skin = col.skin || '#d2a184', top = col.top || '#d9d5cb', bottom = col.bottom || '#4a5568', shoes = col.shoes || '#2d2d30', hair = col.hair || '#3a2b22';
+    const outfit = String(spec.outfit || 'pants').toLowerCase(), sleeves = String(spec.sleeves || 'long').toLowerCase();
+    const lower = outfit === 'dress' ? top : bottom;
+    const shinCol = outfit === 'pants' ? bottom : skin, thighCol = outfit === 'pants' || outfit === 'shorts' ? bottom : skin;
+    const upperArm = sleeves === 'none' ? skin : top, foreArm = sleeves === 'long' ? top : skin;
+
+    const g = (parent, x, y, z) => { const n = new T.Group(); n.position.set(x * s, y * s, z * s); parent.add(n); return n; };
+    const m = (parent, geo, color, x, y, z) => { const n = new T.Mesh(geo.scale(s, s, s), W.mat(color)); n.position.set((x || 0) * s, (y || 0) * s, (z || 0) * s); n.castShadow = true; parent.add(n); return n; };
+
+    const rig = { s, root: new T.Group(), L: {}, Rt: {}, dims: { thigh: 0.43 * s, shin: 0.42 * s, sole: 0.082 * s, toe: 0.195 * s, heel: 0.055 * s, attach: 0.02 * s } };
+    rig.tilt = g(rig.root, 0, 0, 0);
+    rig.hips = g(rig.tilt, 0, 0.95, 0);
+    m(rig.hips, new T.CapsuleGeometry(0.1, 0.15 * b, 4, 10).rotateZ(Math.PI / 2), lower, 0, 0.02, 0);
+    if (outfit === 'skirt' || outfit === 'dress') m(rig.hips, new T.CylinderGeometry(0.14 * b, 0.27 * b, 0.46, 12, 1, true), lower, 0, -0.2, 0).material.side = T.DoubleSide;
+    rig.spine = g(rig.hips, 0, 0.07, 0);
+    m(rig.spine, ball(0.29 * b, 0.26, 0.2), top, 0, 0.07, 0);
+    rig.chest = g(rig.spine, 0, 0.19, 0);
+    m(rig.chest, ball(0.39 * b, 0.33, 0.23), top, 0, 0.08, 0);
+    rig.head = g(rig.chest, 0, 0.26, 0);
+    m(rig.head, new T.CylinderGeometry(0.045, 0.05, 0.1, 10), skin, 0, 0.03, 0);
+    m(rig.head, ball(0.19, 0.235, 0.21), skin, 0, 0.16, 0);
+    m(rig.head, new T.BoxGeometry(0.03, 0.045, 0.04), skin, 0, 0.14, 0.105);
+    const hs = String(spec.hair || 'short').toLowerCase();
+    if (hs !== 'bald' && hs !== 'none') {
+      m(rig.head, ball(0.205, 0.2, 0.225), hair, 0, 0.2, -0.022);
+      if (hs === 'long') m(rig.head, ball(0.21, 0.36, 0.1), hair, 0, 0.06, -0.085);
+      if (hs === 'bun' || hs === 'ponytail') m(rig.head, ball(0.1, 0.1, 0.1), hair, 0, hs === 'bun' ? 0.3 : 0.15, hs === 'bun' ? -0.06 : -0.15);
+    }
+    for (const side of [1, -1]) {
+      const S = side === 1 ? rig.L : rig.Rt;
+      S.arm = g(rig.chest, 0.185 * b * side, 0.19, 0); S.arm.rotation.order = 'XZY';
+      m(S.arm, cap(0.048 * b, 0.27), upperArm);
+      S.fore = g(S.arm, 0, -0.28, 0);
+      m(S.fore, cap(0.04 * b, 0.24), foreArm);
+      S.hand = g(S.fore, 0, -0.27, 0);
+      m(S.hand, ball(0.07, 0.11, 0.05), skin, 0, -0.03, 0);
+      S.leg = g(rig.hips, 0.09 * b * side, -0.02, 0); S.leg.rotation.order = 'XZY';
+      m(S.leg, cap(0.074 * b, 0.42), thighCol);
+      S.shin = g(S.leg, 0, -0.43, 0);
+      m(S.shin, cap(0.056 * b, 0.41), shinCol);
+      S.foot = g(S.shin, 0, -0.42, 0);
+      m(S.foot, new T.BoxGeometry(0.095, 0.075, 0.25), shoes, 0, -0.045, 0.07);
+    }
+    /* Anything the character wears or holds: any scene object, attached to a body part. */
+    const bones = { handr: rig.Rt.hand, handl: rig.L.hand, head: rig.head, chest: rig.chest, back: rig.chest, hips: rig.hips };
+    for (const pr of (Array.isArray(spec.props) ? spec.props : [])) {
+      const bone = bones[String(pr.on || 'handR').toLowerCase()] || rig.Rt.hand;
+      const parts = W.expand(Object.assign({}, pr, { on: undefined }));
+      if (parts.length) { const mesh = W.batch(parts); mesh.receiveShadow = false; bone.add(mesh); }
+    }
+    return rig;
+  };
+
+  /* How far below the hip joint a leg reaches, for the given joint angles (used to keep feet on the floor). */
+  function reach(d, lean, sw, kn, toe, ab) {
+    const a = lean - sw, psi = -toe;
+    const low = Math.min(-d.sole * Math.cos(psi) - d.toe * Math.sin(psi), -d.sole * Math.cos(psi) + d.heel * Math.sin(psi));
+    return (d.thigh * Math.cos(a) + d.shin * Math.cos(a + kn)) * Math.cos(ab) - low;
+  }
+
+  R.apply = (rig, p) => {
+    const d = rig.dims;
+    const auto = Math.max(reach(d, p.lean, p.lSwL, p.knL, p.toeL, p.lAbL), reach(d, p.lean, p.lSwR, p.knR, p.toeR, p.lAbR)) + d.attach * Math.cos(p.lean);
+    const w = p.hipAuto === undefined ? (p.hipY < 0 ? 1 : 0) : p.hipAuto;
+    const hipY = auto * w + Math.max(0, p.hipY) * rig.s * (1 - w);
+    rig.tilt.rotation.set(p.tiltX, 0, p.tiltZ);
+    rig.tilt.position.set(0, p.lift * rig.s, p.shiftZ * rig.s);
+    rig.hips.position.set(p.sway * rig.s, hipY, 0);
+    rig.hips.rotation.set(p.lean, p.hipYaw, p.hipRoll);
+    rig.spine.rotation.set(p.spine, p.twist * 0.5, p.side * 0.5);
+    rig.chest.rotation.set(p.chest, p.twist * 0.5, p.side * 0.5);
+    rig.head.rotation.set(p.nod, p.turn, p.headTilt);
+    rig.L.arm.rotation.set(-p.aSwL, -p.aTwL, p.aAbL);
+    rig.Rt.arm.rotation.set(-p.aSwR, p.aTwR, -p.aAbR);
+    rig.L.fore.rotation.x = -p.elL; rig.Rt.fore.rotation.x = -p.elR;
+    rig.L.leg.rotation.set(-p.lSwL, 0, p.lAbL);
+    rig.Rt.leg.rotation.set(-p.lSwR, 0, -p.lAbR);
+    rig.L.shin.rotation.x = p.knL; rig.Rt.shin.rotation.x = p.knR;
+    rig.L.foot.rotation.x = -p.toeL - p.lean + p.lSwL - p.knL;
+    rig.Rt.foot.rotation.x = -p.toeR - p.lean + p.lSwR - p.knR;
+  };
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — the acting vocabulary. A "base" drives the whole body; a "gesture" only takes over arms and head. */
+(function (PV) {
+  'use strict';
+  const A = PV.acting = { base: {}, gesture: {} };
+  const sin = Math.sin, cos = Math.cos, PI = Math.PI, TAU = Math.PI * 2;
+  const sm = PV.smooth;
+  const set = (p, o) => { for (const k in o) p[k] = o[k]; return p; };
+  const both = (p, key, v) => { p[key + 'L'] = v; p[key + 'R'] = v; };
+
+  /* t = seconds since the action began, ph = stride phase (0..1 per two steps), v = speed in m/s. */
+  const B = A.base;
+  B.idle = (p, t) => { both(p, 'aAb', 0.12); both(p, 'el', 0.2); both(p, 'kn', 0.05); both(p, 'lAb', 0.05);
+    p.chest = 0.02 * sin(t * 1.7); p.sway = 0.008 * sin(t * 0.6); p.hipRoll = 0.012 * sin(t * 0.6); p.nod = 0.02 * sin(t * 0.9); };
+
+  function stride(p, ph, amp, knee, kneeMin, armAmp, elbow, lean, bob) {
+    const a = ph * TAU, s = sin(a), c = cos(a);
+    p.lSwL = amp * s + lean * 0.5; p.lSwR = -amp * s + lean * 0.5;
+    p.knL = kneeMin + knee * Math.pow(Math.max(0, c), 1.2); p.knR = kneeMin + knee * Math.pow(Math.max(0, -c), 1.2);
+    p.toeL = 0.28 * amp * s; p.toeR = -0.28 * amp * s;
+    p.aSwL = -armAmp * s; p.aSwR = armAmp * s;
+    p.elL = elbow + 0.25 * armAmp * Math.max(0, -s); p.elR = elbow + 0.25 * armAmp * Math.max(0, s);
+    both(p, 'aAb', 0.1); p.lean = lean; p.spine = lean * 0.25; p.nod = -lean * 0.7;
+    p.twist = -0.16 * amp * s; p.hipYaw = 0.1 * amp * s; p.hipRoll = 0.04 * c; p.lift = bob * (0.5 - 0.5 * cos(a * 2));
+  }
+  B.walk = (p, t, ph, v) => stride(p, ph, 0.3 + 0.12 * Math.min(v, 2.5), 0.95, 0.08, 0.38 + 0.1 * v, 0.25, 0.03 + 0.02 * v, 0);
+  B.run = (p, t, ph, v) => { const k = PV.clamp((v - 2.5) / 5, 0, 1);
+    stride(p, ph, 0.62 + 0.3 * k, 1.5 + 0.4 * k, 0.3, 0.75 + 0.3 * k, 1.45, 0.16 + 0.16 * k, 0.07 + 0.05 * k); };
+  B.sneak = (p, t, ph) => { stride(p, ph, 0.36, 0.8, 0.85, 0.2, 0.9, 0.42, 0); p.nod = -0.3; both(p, 'aAb', 0.25); };
+  B.crouch = (p, t) => { both(p, 'lSw', 1.72); both(p, 'kn', 2.3); both(p, 'toe', -0.35); p.lean = 0.55; p.nod = -0.4; both(p, 'aSw', 0.55); both(p, 'el', 1.1); both(p, 'lAb', 0.2); p.chest = 0.02 * sin(t * 1.7); };
+  B.kneel = (p) => { set(p, { lSwL: 1.4, knL: 1.5, lSwR: -0.12, knR: 1.6, toeR: -1.3, lean: 0.05, aSwL: 0.6, elL: 0.8, aAbR: 0.12, elR: 0.3 }); };
+  B.sit = (p, t) => { both(p, 'lSw', 1.5); both(p, 'kn', 1.5); p.lean = -0.06; both(p, 'aSw', 0.38); both(p, 'el', 0.85); both(p, 'lAb', 0.08); p.chest = 0.02 * sin(t * 1.5); };
+  B.sit_ground = (p) => { set(p, { hipY: 0.1, lean: -0.3, spine: 0.25, lSwL: 1.25, lSwR: 1.25, knL: 0.3, knR: 0.3, toeL: 0.9, toeR: 0.9, aSwL: -0.6, aSwR: -0.6, aAbL: 0.25, aAbR: 0.25 }); };
+  B.drive = (p) => { set(p, { hipY: 0, lean: -0.2, spine: 0.1, lSwL: 1.3, lSwR: 1.3, knL: 0.9, knR: 0.9, toeL: 0.4, toeR: 0.4, aSwL: 1.05, aSwR: 1.05, elL: 0.75, elR: 0.75, aTwL: 0.15, aTwR: 0.15 }); };
+  B.ride = (p) => { set(p, { hipY: 0, lean: 0.38, nod: -0.3, lSwL: 1.05, lSwR: 1.05, knL: 1.3, knR: 1.3, lAbL: 0.3, lAbR: 0.3, toeL: 0.2, toeR: 0.2, aSwL: 1.0, aSwR: 1.0, elL: 0.35, elR: 0.35 }); };
+  B.lie = (p) => { set(p, { tiltX: -PI / 2, lift: 0.12, shiftZ: 0.9, hipY: 0.95, aAbL: 0.35, aAbR: 0.35, lAbL: 0.12, lAbR: 0.12, toeL: -0.5, toeR: -0.5 }); };
+  B.fall = (p, t) => { const k = sm(t / 0.85), buckle = sin(Math.min(1, t / 0.85) * PI);
+    set(p, { tiltX: -PI / 2 * k, lift: 0.12 * k, shiftZ: 0.9 * k, hipY: 0.95 - 0.25 * buckle, knL: 0.9 * buckle, knR: 0.7 * buckle,
+      aAbL: 0.35 + 0.9 * buckle, aAbR: 0.35 + 0.7 * buckle, lAbL: 0.12, lAbR: 0.12, nod: -0.3 * buckle, toeL: -0.5 * k, toeR: -0.5 * k }); };
+  B.jump = (p, t) => { const u = (t % 1.15) / 1.15, air = PV.clamp((u - 0.28) / 0.44, 0, 1), dip = u < 0.28 ? sin(u / 0.28 * PI * 0.5) * (1 - air) : (u > 0.72 ? sin((1 - u) / 0.28 * PI * 0.5) : 0);
+    const up = sin(air * PI);
+    set(p, { lift: 0.55 * up, lean: 0.35 * dip, lSwL: 0.9 * dip + 0.5 * up, lSwR: 0.9 * dip + 0.3 * up, knL: 1.5 * dip + 0.9 * up, knR: 1.5 * dip + 0.6 * up,
+      aSwL: -0.6 * dip + 2.4 * up, aSwR: -0.6 * dip + 2.4 * up, elL: 0.4, elR: 0.4, toeL: -0.5 * up, toeR: -0.5 * up, nod: -0.2 * dip }); };
+  B.dance = (p, t) => { const a = t * TAU * 1.05, s = sin(a), c = cos(a), s2 = sin(a * 2);
+    set(p, { sway: 0.07 * s, hipRoll: 0.12 * s, hipYaw: 0.2 * c, twist: -0.3 * c, knL: 0.35 + 0.25 * s2, knR: 0.35 - 0.25 * s2, lSwL: 0.2 + 0.1 * s2, lSwR: 0.2 - 0.1 * s2,
+      aAbL: 0.9 + 0.6 * s, aAbR: 0.9 - 0.6 * s, aSwL: 0.5 + 0.4 * c, aSwR: 0.5 - 0.4 * c, elL: 1.3 + 0.4 * s2, elR: 1.3 - 0.4 * s2, nod: 0.1 * s2, headTilt: 0.12 * s, lAbL: 0.12, lAbR: 0.12 }); };
+  B.punch = (p, t) => { const u = (t * 2.2) % 2, hitR = u < 1 ? sin(u * PI) : 0, hitL = u >= 1 ? sin((u - 1) * PI) : 0;
+    set(p, { lSwL: 0.35, lSwR: -0.3, knL: 0.45, knR: 0.4, toeR: -0.3, lean: 0.14, lAbL: 0.1, lAbR: 0.1, twist: 0.55 * hitR - 0.45 * hitL, hipYaw: 0.2 * hitR - 0.2 * hitL,
+      aSwR: 0.7 + 0.85 * hitR, elR: 2.2 - 2.05 * hitR, aSwL: 0.75 + 0.8 * hitL, elL: 2.2 - 2.05 * hitL, aTwL: 0.3, aTwR: 0.3, nod: -0.1 }); };
+  B.kick = (p, t) => { const u = (t % 1.3) / 1.3, k = u < 0.55 ? sin(u / 0.55 * PI) : 0, chamber = u < 0.25 ? sin(u / 0.25 * PI) : 0;
+    set(p, { lSwR: 1.55 * k, knR: 1.6 * chamber * (1 - k * 0.6), toeR: -0.5 * k, knL: 0.2, lean: -0.3 * k, spine: 0.15 * k, aAbL: 0.6 + 0.5 * k, aAbR: 0.5, elL: 1.2, elR: 1.4, aSwL: 0.4, aSwR: -0.3 * k }); };
+  B.push = (p, t, ph) => { stride(p, ph, 0.32, 0.8, 0.45, 0, 0, 0.5, 0); both(p, 'aSw', 1.15); both(p, 'el', 0.3); p.nod = -0.35; };
+  B.climb = (p, t) => { const a = t * TAU * 0.8, s = sin(a);
+    set(p, { hipY: 0.9, lSwL: 0.7 + 0.5 * s, lSwR: 0.7 - 0.5 * s, knL: 1.1 + 0.6 * s, knR: 1.1 - 0.6 * s, aSwL: 2.2 - 0.5 * s, aSwR: 2.2 + 0.5 * s, elL: 0.9 + 0.5 * s, elR: 0.9 - 0.5 * s, nod: -0.35 }); };
+  B.swim = (p, t) => { const a = t * TAU * 0.75, s = sin(a), c = cos(a);
+    set(p, { tiltX: 1.42, hipY: 0.95, lift: -0.6, shiftZ: -0.9, nod: -1.0, aSwL: 1.6 + 1.5 * s, aSwR: 1.6 - 1.5 * s, aAbL: 0.3 + 0.3 * c, aAbR: 0.3 - 0.3 * c, elL: 0.4, elR: 0.4,
+      lSwL: 0.25 * sin(a * 3), lSwR: -0.25 * sin(a * 3), knL: 0.25, knR: 0.25, toeL: -0.9, toeR: -0.9 }); };
+  B.fly = (p, t) => { set(p, { tiltX: 1.3, hipY: 0.95, shiftZ: -0.9, nod: -1.0, aSwR: 2.9, aSwL: 0.1, aAbL: 0.2, elL: 0.3, lSwL: -0.05, lSwR: 0.1, knR: 0.5, toeL: -0.9, toeR: -0.9, lift: 0.05 * sin(t * 2) }); };
+
+  /* Gestures: arms, head and a little torso, laid over whatever the legs are doing. */
+  const G = A.gesture;
+  G.wave = (p, t) => set(p, { aAbR: 2.35, aTwR: -1.4, elR: 0.9 + 0.5 * sin(t * 9), aSwR: 0.1, side: -0.06 });
+  G.point = (p) => set(p, { aSwR: 1.5, elR: 0.06, aAbR: 0.05 });
+  G.talk = (p, t) => set(p, { aSwL: 0.3, aSwR: 0.35, elL: 1.35 + 0.25 * sin(t * 4.1), elR: 1.3 + 0.3 * sin(t * 3.3 + 1), aAbL: 0.18, aAbR: 0.2 + 0.1 * sin(t * 2.2), aTwL: 0.25, aTwR: 0.2, nod: 0.05 * sin(t * 3.1) });
+  G.phone = (p) => set(p, { aSwR: 0.55, aAbR: 0.4, elR: 2.55, aTwR: 0.55, headTilt: -0.12 });
+  G.think = (p) => set(p, { aSwR: 0.8, elR: 2.35, aTwR: 0.55, aSwL: 0.3, elL: 1.5, aTwL: 1.2, nod: 0.12 });
+  G.cheer = (p, t) => set(p, { aAbL: 2.6 + 0.15 * sin(t * 10), aAbR: 2.6 - 0.15 * sin(t * 10), elL: 0.35, elR: 0.35, nod: -0.2 });
+  G.clap = (p, t) => { const c = 0.45 + 0.22 * sin(t * 14); return set(p, { aSwL: 0.95, aSwR: 0.95, elL: 1.35, elR: 1.35, aTwL: c, aTwR: c }); };
+  G.hands_up = (p) => set(p, { aAbL: 1.5, aAbR: 1.5, aTwL: -1.5, aTwR: -1.5, elL: 1.5, elR: 1.5 });
+  G.aim = (p) => set(p, { aSwL: 1.5, aSwR: 1.5, aTwL: 0.3, aTwR: 0.3, elL: 0.2, elR: 0.12, nod: 0.03 });
+  G.carry = (p) => set(p, { aSwL: 0.45, aSwR: 0.45, elL: 1.45, elR: 1.45, aTwL: 0.1, aTwR: 0.1 });
+  G.drink = (p, t) => set(p, { aSwR: 0.95, elR: 2.3 + 0.1 * sin(t * 2), aTwR: 0.35, nod: -0.15 });
+  G.akimbo = (p) => set(p, { aAbL: 0.75, aAbR: 0.75, elL: 1.75, elR: 1.75, aTwL: 0.95, aTwR: 0.95 });
+  G.arms_crossed = (p) => set(p, { aSwL: 0.55, aSwR: 0.5, elL: 1.95, elR: 1.9, aTwL: 1.25, aTwR: 1.2 });
+  G.shield = (p) => set(p, { aSwL: 1.9, aSwR: 1.9, elL: 1.6, elR: 1.6, aTwL: 0.5, aTwR: 0.5, nod: 0.35, spine: 0.2 });
+
+  /* The words a scene may use, mapped onto the actions above. */
+  const ALIAS = { stand: 'idle', wait: 'idle', stop: 'idle', jog: 'run', sprint: 'run', dash: 'run', stroll: 'walk', creep: 'sneak', squat: 'crouch', duck: 'crouch',
+    sleep: 'lie', dead: 'fall', die: 'fall', collapse: 'fall', fight: 'punch', box: 'punch', seated: 'sit', hello: 'wave', greet: 'wave', call: 'phone',
+    celebrate: 'cheer', surrender: 'hands_up', shoot: 'aim', gun: 'aim', hold: 'carry', speak: 'talk', argue: 'talk', hop: 'jump', leap: 'jump' };
+  A.baseNames = Object.keys(B); A.gestureNames = Object.keys(G);
+  A.parse = (text) => {
+    const out = { base: null, gesture: null };
+    for (let w of String(text || '').toLowerCase().split(/[\s+,&/]+/)) {
+      w = ALIAS[w] || w;
+      if (B[w] && !out.base) out.base = w; else if (G[w] && !out.gesture) out.gesture = w;
+    }
+    return out;
+  };
+  /* Bases that keep the feet planted even if the character is being carried along (in a car, on a bike). */
+  A.still = { sit: 1, sit_ground: 1, drive: 1, ride: 1, lie: 1, fall: 1, kneel: 1, dance: 1, punch: 1, kick: 1, jump: 1, climb: 1, swim: 1, fly: 1 };
+  A.ARMS = ['aSwL', 'aSwR', 'aAbL', 'aAbR', 'aTwL', 'aTwR', 'elL', 'elR', 'nod', 'headTilt', 'side'];
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — builds a scene and bakes every character and vehicle into a timeline that can be read at any instant. */
+(function (PV) {
+  'use strict';
+  const T = THREE, A = PV.acting, R = PV.rig, W = PV.world;
+  const M = PV.motion = { duration: 10, actors: [], movers: [], byId: {} };
+  const DT = 1 / 60, N = PV.num;
+
+  function sortedKeys(spec, list) {
+    const keys = (Array.isArray(list) ? list : []).filter((k) => k && typeof k === 'object')
+      .map((k) => ({ t: Math.max(0, N(k.t, 0)), p: PV.vec3(k.pos || k.to || k.at, null), raw: k, act: A.parse(k.do || k.action) }));
+    let last = PV.vec3(spec.pos);
+    for (const k of keys) { if (!Array.isArray(k.raw.pos || k.raw.to || k.raw.at)) k.p = last.slice(); last = k.p; }
+    keys.sort((a, b) => a.t - b.t);
+    if (!keys.length) keys.push({ t: 0, p: PV.vec3(spec.pos), raw: spec, act: A.parse(spec.do || spec.action) });
+    return keys;
+  }
+
+  /* Straight lines between keys, then blurred twice: corners round off and starts and stops ease by themselves. */
+  function bakePath(keys, n) {
+    const out = [new Float32Array(n), new Float32Array(n), new Float32Array(n)];
+    let j = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i * DT;
+      while (j < keys.length - 2 && t >= keys[j + 1].t) j++;
+      const a = keys[j], b = keys[Math.min(j + 1, keys.length - 1)];
+      const f = b.t > a.t ? PV.clamp((t - a.t) / (b.t - a.t), 0, 1) : (t >= b.t ? 1 : 0);
+      for (let c = 0; c < 3; c++) out[c][i] = a.p[c] + (b.p[c] - a.p[c]) * f;
+    }
+    const tmp = new Float32Array(n), r = 9;
+    for (let pass = 0; pass < 2; pass++) for (let c = 0; c < 3; c++) {
+      const src = out[c]; let sum = 0;
+      for (let k = -r; k <= r; k++) sum += src[PV.clamp(k, 0, n - 1)];
+      for (let i = 0; i < n; i++) { tmp[i] = sum / (2 * r + 1); sum += src[PV.clamp(i + r + 1, 0, n - 1)] - src[PV.clamp(i - r, 0, n - 1)]; }
+      src.set(tmp);
+    }
+    return out;
+  }
+
+  const keyAt = (keys, t) => { let k = keys[0]; for (const c of keys) { if (c.t <= t + 1e-6) k = c; else break; } return k; };
+
+  function firstHeading(e, fallbackDeg) {
+    for (let i = 1; i < e.n; i++) { const dx = e.x[i] - e.x[0], dz = e.z[i] - e.z[0]; if (dx * dx + dz * dz > 0.09) return Math.atan2(dx, dz); }
+    return PV.deg(N(fallbackDeg, 0));
+  }
+
+  function faceTarget(face, e, i) {
+    if (face === undefined || face === null) return null;
+    if (typeof face === 'number') return PV.deg(face);
+    let tx, tz;
+    if (Array.isArray(face)) { const p = PV.vec3(face); tx = p[0]; tz = p[2]; }
+    else { const o = M.byId[String(face)]; if (!o) return null; tx = o.x[i]; tz = o.z[i]; }
+    const dx = tx - e.x[i], dz = tz - e.z[i];
+    return dx * dx + dz * dz < 0.01 ? null : Math.atan2(dx, dz);
+  }
+
+  function bakeEntity(spec, keys, n) {
+    const p = bakePath(keys, n);
+    return { id: String(spec.id || spec.name || ''), spec, keys, n, x: p[0], y: p[1], z: p[2], h: new Float32Array(n), sp: new Float32Array(n), dist: new Float32Array(n) };
+  }
+
+  function bakeHeading(e, turnRate, initialDeg) {
+    /* Something already moving starts facing its direction of travel; otherwise a stated heading wins. */
+    const probe = Math.min(e.n - 1, 12), movingAtStart = Math.hypot(e.x[probe] - e.x[0], e.z[probe] - e.z[0]) > 0.05;
+    const stated = initialDeg !== undefined && initialDeg !== null;
+    let h = (!movingAtStart && stated) ? PV.deg(N(initialDeg, 0)) : firstHeading(e, initialDeg);
+    for (let i = 0; i < e.n; i++) {
+      const a = Math.max(0, i - 1), b = Math.min(e.n - 1, i + 1), span = (b - a) * DT || DT;
+      const vx = (e.x[b] - e.x[a]) / span, vz = (e.z[b] - e.z[a]) / span, sp = Math.hypot(vx, vz);
+      e.sp[i] = sp; e.dist[i] = i ? e.dist[i - 1] + sp * DT : 0;
+      const key = keyAt(e.keys, i * DT);
+      let target = null;
+      if (sp > 0.2) target = Math.atan2(vx, vz);
+      else target = faceTarget(key.raw.face, e, i);
+      if (i === 0 && sp <= 0.2 && target !== null) h = target;
+      if (target !== null) h += PV.angDiff(h, target) * (1 - Math.exp(-DT * (sp > 0.2 ? turnRate : turnRate * 0.6)));
+      e.h[i] = h;
+    }
+  }
+
+  function bakeActing(e) {
+    const n = e.n, s = e.rig.s;
+    e.ph = new Float32Array(n);
+    e.base = new Uint8Array(n); e.basePrev = new Uint8Array(n); e.baseMix = new Float32Array(n); e.baseT = new Float32Array(n); e.prevT = new Float32Array(n);
+    e.gest = new Uint8Array(n); e.gestPrev = new Uint8Array(n); e.gestMix = new Float32Array(n); e.gestT = new Float32Array(n);
+    e.headYaw = new Float32Array(n); e.headPitch = new Float32Array(n); e.lookCam = new Float32Array(n);
+    const bn = A.baseNames, gn = A.gestureNames;
+    let cur = -1, prev = 0, curStart = 0, prevStart = 0, g = 0, gPrev = 0, gStart = -9, moving = false, running = false, ph = 0, hy = 0, hp = 0, cam = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i * DT, key = keyAt(e.keys, t), sp = e.attached ? 0 : e.sp[i];
+      moving = sp > (moving ? 0.15 : 0.3); running = sp > (running ? 2.4 : 2.9);
+      ph += sp * DT / ((sp < 2.7 ? 0.9 + 0.38 * sp : 1.2 + 0.42 * sp) * s); e.ph[i] = ph;
+      let name = key.act.base;
+      if (e.attached) name = name || 'sit';
+      else if (!name || name === 'idle') name = moving ? (running ? 'run' : 'walk') : 'idle';
+      else if (name === 'crouch' && moving) name = 'sneak';
+      else if ((name === 'sneak') && !moving) name = 'crouch';
+      else if ((name === 'walk' || name === 'run' || name === 'push') && !moving) name = 'idle';
+      const id = Math.max(0, bn.indexOf(name));
+      if (id !== cur) { prev = cur < 0 ? id : cur; prevStart = curStart; cur = id; curStart = t; }
+      e.base[i] = cur; e.basePrev[i] = prev; e.baseT[i] = t - curStart; e.prevT[i] = t - prevStart;
+      e.baseMix[i] = prev === cur ? 1 : PV.smooth((t - curStart) / 0.3);
+      const gid = key.act.gesture ? gn.indexOf(key.act.gesture) + 1 : 0;
+      if (gid !== g) { gPrev = g; g = gid; gStart = t; }
+      e.gest[i] = g; e.gestPrev[i] = gPrev; e.gestT[i] = t; e.gestMix[i] = PV.smooth((t - gStart) / 0.28);
+
+      /* Head turns toward what the character is looking at, within what a neck can do. */
+      let ty = 0, tp = 0, wantCam = 0;
+      const look = key.raw.look;
+      if (look === 'camera') wantCam = 1;
+      else if (look !== undefined && look !== null) {
+        let q = null;
+        if (Array.isArray(look)) q = PV.vec3(look);
+        else { const o = M.byId[String(look)]; if (o) q = [o.x[i], o.y[i] + (o.rig ? 1.6 * o.rig.s : 1), o.z[i]]; }
+        if (q) { const dx = q[0] - e.x[i], dz = q[2] - e.z[i], dy = q[1] - (e.y[i] + 1.62 * s);
+          ty = PV.clamp(PV.angDiff(e.h[i], Math.atan2(dx, dz)), -1.25, 1.25); tp = PV.clamp(Math.atan2(dy, Math.hypot(dx, dz)), -0.6, 0.7); }
+      }
+      const k = 1 - Math.exp(-DT * 6);
+      hy += (ty - hy) * k; hp += (tp - hp) * k; cam += (wantCam - cam) * k;
+      e.headYaw[i] = hy; e.headPitch[i] = hp; e.lookCam[i] = cam;
+    }
+  }
+
+  /* ---------- loading a scene ---------- */
+  M.load = (scene) => {
+    M.scene = scene;
+    M.duration = PV.clamp(N(scene.duration, 10), 2, 60);
+    const n = Math.ceil(M.duration / DT) + 2;
+    M.actors = []; M.movers = []; M.byId = {};
+    W.clear(); W.setEnv(scene.env);
+
+    const objects = (Array.isArray(scene.objects) ? scene.objects : []).filter((o) => o && typeof o === 'object');
+    const actors = (Array.isArray(scene.actors) ? scene.actors : []).filter((o) => o && typeof o === 'object');
+    const ridden = new Set(actors.map((a) => a.in).filter(Boolean).map(String));
+    const isMover = (o) => Array.isArray(o.track) || (o.id && ridden.has(String(o.id)));
+
+    /* Routes first, so scattered scenery can stay off them. */
+    const avoid = PV.props.avoid = [];
+    const route = (keys) => { for (let i = 0; i < keys.length; i++) { const a = keys[i].p, b = keys[Math.min(i + 1, keys.length - 1)].p; avoid.push([a[0], a[2], b[0], b[2]]); } };
+    const moverKeys = objects.filter(isMover).map((o) => sortedKeys(o, o.track));
+    const actorKeys = actors.map((a) => sortedKeys(a, a.keys || a.track));
+    moverKeys.forEach(route); actorKeys.forEach((k, i) => { if (!actors[i].in) route(k); });
+
+    const fixed = [];
+    for (const o of objects) if (!isMover(o)) for (const part of W.expand(o)) fixed.push(part);
+    if (fixed.length) W.content.add(W.group(fixed));
+
+    objects.filter(isMover).forEach((o, i) => {
+      const e = bakeEntity(o, moverKeys[i], n);
+      const local = Object.assign({}, o, { pos: [0, 0, 0], rot: 0, track: undefined });
+      e.group = W.group(W.expand(local)); e.kind = 'mover'; e.label = o.name || o.id || o.type;
+      W.content.add(e.group); M.movers.push(e); if (e.id) M.byId[e.id] = e;
+    });
+    for (const e of M.movers) bakeHeading(e, 4.5, Array.isArray(e.spec.rot) ? e.spec.rot[1] : e.spec.rot);
+
+    actors.forEach((a, i) => {
+      const e = bakeEntity(a, actorKeys[i], n);
+      e.rig = R.build(a); e.kind = 'actor'; e.label = a.name || a.id || ('#' + (i + 1));
+      const host = a.in ? M.byId[String(a.in)] : null;
+      if (host && host.group) {
+        e.attached = host; const seat = PV.vec3(a.seat, [0.4, 0.5, 0]);
+        e.seat = new T.Vector3(seat[0], seat[1], seat[2]);
+        e.rig.root.position.copy(e.seat); e.rig.root.rotation.y = PV.deg(N(a.heading, 0));
+        host.group.add(e.rig.root);
+      } else W.content.add(e.rig.root);
+      M.actors.push(e); if (e.id && !M.byId[e.id]) M.byId[e.id] = e;
+    });
+    for (const e of M.actors) if (!e.attached) bakeHeading(e, 9, e.spec.heading);
+    for (const e of M.actors) bakeActing(e);
+
+    M.subjects = M.actors.concat(M.movers.filter((m) => m.keys.length > 1 || !M.actors.length));
+    M.focus = M.byId[String(scene.focus)] || M.subjects[0] || null;
+  };
+
+  /* ---------- reading the timeline ---------- */
+  const P0 = R.blank(), P1 = R.blank(), PG0 = {}, PG1 = {}, PM = {};
+  const reset = (p) => { for (const k of R.KEYS) p[k] = 0; p.hipY = -1; p.hipAuto = undefined; return p; };
+  const tmpV = new T.Vector3();
+
+  function sample(e, t) {
+    const f = PV.clamp(t, 0, M.duration) / DT, i = Math.min(e.n - 2, Math.floor(f));
+    return { i, a: f - i };
+  }
+
+  M.pose = (t, camera) => {
+    for (const e of M.movers) {
+      const { i, a } = sample(e, t);
+      e.group.position.set(PV.lerp(e.x[i], e.x[i + 1], a), PV.lerp(e.y[i], e.y[i + 1], a), PV.lerp(e.z[i], e.z[i + 1], a));
+      e.group.rotation.y = e.h[i] + PV.angDiff(e.h[i], e.h[i + 1]) * a;
+      const d = PV.lerp(e.dist[i], e.dist[i + 1], a);
+      for (const w of e.group.userData.wheels) w.rotation.x = d / w.userData.radius;
+    }
+    for (const e of M.actors) {
+      const { i, a } = sample(e, t), bn = A.baseNames, gn = A.gestureNames;
+      const ph = PV.lerp(e.ph[i], e.ph[i + 1], a), sp = e.attached ? 0 : PV.lerp(e.sp[i], e.sp[i + 1], a);
+      A.base[bn[e.base[i]]](reset(P1), e.baseT[i] + a * DT, ph, sp);
+      let p = P1;
+      if (e.baseMix[i] < 1) { A.base[bn[e.basePrev[i]]](reset(P0), e.prevT[i] + a * DT, ph, sp); p = R.mix(P0, P1, e.baseMix[i], PM); }
+      /* A passenger's seat is where the hips go, so feet never decide the height. */
+      if (e.attached) { p.hipAuto = 0; if (p.hipY < 0) p.hipY = 0; }
+      if (e.gest[i] || e.gestPrev[i]) {
+        for (const k of A.ARMS) { PG0[k] = p[k]; PG1[k] = p[k]; }
+        PG0.spine = PG1.spine = p.spine;
+        if (e.gestPrev[i]) A.gesture[gn[e.gestPrev[i] - 1]](PG0, t);
+        if (e.gest[i]) A.gesture[gn[e.gest[i] - 1]](PG1, t);
+        const m = e.gestMix[i];
+        for (const k of A.ARMS) p[k] = PG0[k] + (PG1[k] - PG0[k]) * m;
+        p.spine = PG0.spine + (PG1.spine - PG0.spine) * m;
+      }
+      let yaw = e.headYaw[i], pitch = e.headPitch[i];
+      if (!e.attached) {
+        e.rig.root.position.set(PV.lerp(e.x[i], e.x[i + 1], a), PV.lerp(e.y[i], e.y[i + 1], a), PV.lerp(e.z[i], e.z[i + 1], a));
+        e.rig.root.rotation.y = e.h[i] + PV.angDiff(e.h[i], e.h[i + 1]) * a;
+      }
+      if (camera && e.lookCam[i] > 0.01) {
+        M.where(e, t, tmpV); const s = e.rig.s, head = tmpV.y + 0.62 * s;
+        const heading = e.attached ? e.attached.group.rotation.y + e.rig.root.rotation.y : e.rig.root.rotation.y;
+        const dx = camera.position.x - tmpV.x, dz = camera.position.z - tmpV.z, dy = camera.position.y - head;
+        const w = e.lookCam[i];
+        yaw += PV.clamp(PV.angDiff(heading, Math.atan2(dx, dz)), -1.25, 1.25) * w;
+        pitch += PV.clamp(Math.atan2(dy, Math.hypot(dx, dz)), -0.6, 0.7) * w;
+      }
+      p.turn += yaw; p.nod -= pitch;
+      R.apply(e.rig, p);
+    }
+  };
+
+  /* Where a subject is at time t: chest height for people, roof-ish for vehicles. This is what the camera aims at. */
+  M.where = (e, t, out) => {
+    if (!e) return out.set(0, 1, 0);
+    const host = e.attached || e, { i, a } = sample(host, t);
+    out.set(PV.lerp(host.x[i], host.x[i + 1], a), PV.lerp(host.y[i], host.y[i + 1], a), PV.lerp(host.z[i], host.z[i + 1], a));
+    if (e.attached) {
+      const h = host.h[i] + PV.angDiff(host.h[i], host.h[i + 1]) * a, c = Math.cos(h), s = Math.sin(h);
+      out.x += e.seat.x * c + e.seat.z * s; out.z += -e.seat.x * s + e.seat.z * c; out.y += e.seat.y + 0.3 * e.rig.s;
+    } else out.y += e.rig ? 1.0 * e.rig.s : 0.9;
+    return out;
+  };
+  M.headingOf = (e, t) => { if (!e) return 0; const host = e.attached || e, { i, a } = sample(host, t); return host.h[i] + PV.angDiff(host.h[i], host.h[i + 1]) * a; };
+
+  /* The rectangle on the ground that contains all the action (for framing the map). */
+  M.bounds = () => {
+    const b = { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity };
+    /* People on foot set the frame; a car arriving from 200 m away should not shrink everyone to dots. */
+    const walkers = M.actors.filter((e) => !e.attached);
+    for (const e of (walkers.length ? walkers : M.movers)) {
+      for (let i = 0; i < e.n; i += 6) { b.x0 = Math.min(b.x0, e.x[i]); b.x1 = Math.max(b.x1, e.x[i]); b.z0 = Math.min(b.z0, e.z[i]); b.z1 = Math.max(b.z1, e.z[i]); } }
+    if (!Number.isFinite(b.x0)) { b.x0 = b.z0 = -10; b.x1 = b.z1 = 10; }
+    return b;
+  };
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — the camera: real focal lengths, three ways to move it, and takes that can be replayed exactly. */
+(function (PV) {
+  'use strict';
+  const T = THREE, M = PV.motion;
+  const C = PV.cam = {
+    mode: 'free', focal: 35, focalTarget: 35, aspect: 16 / 9, shake: 0,
+    pos: new T.Vector3(0, 1.6, 8), yaw: 0, pitch: 0, yawTo: 0, pitchTo: 0, vel: new T.Vector3(),
+    offYaw: 0, offPitch: 0, offYawTo: 0, offPitchTo: 0,
+    rail: null, railH0: 1.6, railH1: 1.6, railAim: 'subject', move: null, take: null, rec: null, gyro: null
+  };
+  C.LENSES = [16, 24, 35, 50, 85, 135];
+  C.MOVES = ['pan', 'follow', 'orbit', 'arc', 'push', 'pull', 'craneUp', 'craneDown', 'top', 'pov', 'vertigo'];
+
+  C.init = () => { C.cam = new T.PerspectiveCamera(40, C.aspect, 0.08, 3200); C.cam.rotation.order = 'YXZ'; };
+
+  /* Full-frame sensor, 36 mm on the long side of the picture, so a 35 mm here frames like a 35 mm on set. */
+  C.fovFor = (focal) => 2 * Math.atan((C.aspect >= 1 ? 18 / C.aspect : 18) / focal) * 180 / Math.PI;
+
+  const v1 = new T.Vector3(), v2 = new T.Vector3(), q1 = new T.Quaternion(), e1 = new T.Euler(0, 0, 0, 'YXZ');
+  const aim = (from, to) => { const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z; return { yaw: Math.atan2(-dx, -dz), pitch: Math.atan2(dy, Math.hypot(dx, dz)) }; };
+
+  function write(pos, yaw, pitch, t) {
+    let roll = 0;
+    if (C.shake > 0) {
+      const k = C.shake * 0.011 * Math.pow(35 / C.focal, 0.35);
+      yaw += k * (PV.noise1(t * 1.9, 1) + 0.4 * PV.noise1(t * 5.3, 2));
+      pitch += k * (PV.noise1(t * 2.3, 3) + 0.4 * PV.noise1(t * 6.1, 4));
+      roll = k * 0.5 * PV.noise1(t * 1.4, 5);
+      pos.y += C.shake * 0.02 * PV.noise1(t * 2.1, 6);
+    }
+    C.cam.position.copy(pos);
+    C.cam.rotation.set(PV.clamp(pitch, -1.55, 1.55), yaw, roll);
+    C.cam.fov = C.fovFor(C.focal); C.cam.aspect = C.aspect; C.cam.updateProjectionMatrix();
+  }
+
+  /* ---------- free camera: you operate it ---------- */
+  C.input = { x: 0, y: 0, z: 0, dx: 0, dy: 0, zoom: 0, fast: false };
+  function free(dt, t) {
+    const I = C.input, speed = (I.fast ? 13 : 4) * (1 + Math.min(C.pos.y, 40) * 0.06);
+    const fx = -Math.sin(C.yaw), fz = -Math.cos(C.yaw);
+    v1.set((fx * I.z + -fz * I.x) * speed, I.y * speed * 0.7, (fz * I.z + fx * I.x) * speed);
+    C.vel.lerp(v1, 1 - Math.exp(-dt * 7));
+    C.pos.addScaledVector(C.vel, dt); C.pos.y = Math.max(0.12, C.pos.y);
+    if (C.gyro && C.gyro.q) {
+      e1.setFromQuaternion(C.gyro.q, 'YXZ'); C.yaw = C.yawTo = e1.y + C.gyro.yawOffset; C.pitch = C.pitchTo = e1.x;
+      C.cam.position.copy(C.pos); q1.setFromAxisAngle(v2.set(0, 1, 0), C.gyro.yawOffset).multiply(C.gyro.q); C.cam.quaternion.copy(q1);
+      C.cam.fov = C.fovFor(C.focal); C.cam.aspect = C.aspect; C.cam.updateProjectionMatrix();
+      return;
+    }
+    const sens = 0.0026 * Math.min(1.3, C.fovFor(C.focal) / 38);
+    C.yawTo -= I.dx * sens; C.pitchTo = PV.clamp(C.pitchTo - I.dy * sens, -1.5, 1.5);
+    const k = 1 - Math.exp(-dt * 16);
+    C.yaw += (C.yawTo - C.yaw) * k; C.pitch += (C.pitchTo - C.pitch) * k;
+    write(v2.copy(C.pos), C.yaw, C.pitch, t);
+  }
+
+  function nudge(dt) {
+    const I = C.input, sens = 0.0026 * Math.min(1.3, C.fovFor(C.focal) / 38), k = 1 - Math.exp(-dt * 16);
+    C.offYawTo -= I.dx * sens; C.offPitchTo = PV.clamp(C.offPitchTo - I.dy * sens, -1.2, 1.2);
+    C.offYaw += (C.offYawTo - C.offYaw) * k; C.offPitch += (C.offPitchTo - C.offPitch) * k;
+  }
+
+  /* ---------- rail: a line you drew on the map ---------- */
+  C.setRail = (pts) => {
+    if (!pts || pts.length < 2) { C.rail = null; return; }
+    /* Chaikin smoothing turns a shaky finger line into a clean dolly track. */
+    let p = pts.map((q) => [q[0], q[1]]);
+    for (let it = 0; it < 3 && p.length < 400; it++) {
+      const out = [p[0]];
+      for (let i = 0; i < p.length - 1; i++) { const a = p[i], b = p[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); }
+      out.push(p[p.length - 1]); p = out;
+    }
+    const len = [0];
+    for (let i = 1; i < p.length; i++) len.push(len[i - 1] + Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]));
+    C.rail = { pts: p, len, total: len[len.length - 1] || 1 };
+    C.offYaw = C.offPitch = C.offYawTo = C.offPitchTo = 0;
+  };
+  C.railPoint = (f, out) => {
+    const r = C.rail, d = PV.clamp(f, 0, 1) * r.total; let i = 1;
+    while (i < r.len.length - 1 && r.len[i] < d) i++;
+    const a = r.pts[i - 1], b = r.pts[i], seg = r.len[i] - r.len[i - 1] || 1, k = (d - r.len[i - 1]) / seg;
+    return out.set(a[0] + (b[0] - a[0]) * k, 0, a[1] + (b[1] - a[1]) * k);
+  };
+  function rail(dt, t) {
+    const u = PV.clamp(t / M.duration, 0, 1), e = u * u * (3 - 2 * u) * 0.5 + u * 0.5;
+    C.railPoint(e, v1); v1.y = PV.lerp(C.railH0, C.railH1, e);
+    let a;
+    if (C.railAim === 'forward' || !C.subject) { C.railPoint(Math.min(1, e + 0.05), v2); v2.y = v1.y; if (v2.distanceToSquared(v1) < 1e-4) { C.railPoint(Math.max(0, e - 0.05), v2); v2.y = v1.y; v2.sub(v1).negate().add(v1); } a = aim(v1, v2); }
+    else a = aim(v1, M.where(C.subject, t, v2));
+    nudge(dt);
+    write(v1, a.yaw + C.offYaw, a.pitch + C.offPitch, t);
+  }
+
+  /* ---------- ready-made moves: frame the subject first, then tap a move ---------- */
+  const ease = (u) => u * u * (3 - 2 * u);
+  function travelHeading(e, t) {
+    let sx = 0, sz = 0;
+    for (let k = -4; k <= 4; k++) { const h = M.headingOf(e, t + k * 0.18); sx += Math.sin(h); sz += Math.cos(h); }
+    return Math.atan2(sx, sz);
+  }
+  C.setMove = (name, t) => {
+    if (!name || !C.subject) { C.move = null; return; }
+    const s0 = M.where(C.subject, t, new T.Vector3()), off = C.cam.position.clone().sub(s0);
+    if (off.length() < 0.6) off.set(0, 0.4, 3);
+    const a = aim(C.cam.position, s0);
+    C.move = { name, t0: t, u0: ease(PV.clamp(t / M.duration, 0, 1)), off, dist: Math.hypot(off.x, off.z), ang: Math.atan2(off.x, off.z), camPos: C.cam.position.clone(),
+      dYaw: PV.angDiff(a.yaw, C.cam.rotation.y), dPitch: C.cam.rotation.x - a.pitch, h0: travelHeading(C.subject, t), focal: C.focal };
+    C.offYaw = C.offPitch = C.offYawTo = C.offPitchTo = 0;
+  };
+  function move(dt, t) {
+    const m = C.move, S = M.where(C.subject, t, v2), u = ease(PV.clamp(t / M.duration, 0, 1)), du = u - m.u0;
+    let keepFrame = true, yaw = null, pitch = null;
+    v1.copy(m.off);
+    if (m.name === 'pan') { v1.copy(m.camPos).sub(S); }
+    else if (m.name === 'follow') { v1.applyAxisAngle(new T.Vector3(0, 1, 0), PV.angDiff(m.h0, travelHeading(C.subject, t))); }
+    else if (m.name === 'orbit' || m.name === 'arc') { const ang = m.ang + du * (m.name === 'orbit' ? Math.PI * 2 : Math.PI * 0.55); v1.set(Math.sin(ang) * m.dist, m.off.y, Math.cos(ang) * m.dist); }
+    else if (m.name === 'push' || m.name === 'vertigo') { const k = PV.lerp(1, 0.36, u) / PV.lerp(1, 0.36, m.u0); v1.multiplyScalar(k); if (m.name === 'vertigo') C.focal = C.focalTarget = PV.clamp(m.focal * k, 12, 200); }
+    else if (m.name === 'pull') { v1.multiplyScalar(PV.lerp(1, 2.8, u) / PV.lerp(1, 2.8, m.u0)); }
+    else if (m.name === 'craneUp') { v1.x *= 1 + 0.5 * du; v1.z *= 1 + 0.5 * du; v1.y += du * (5 + m.dist * 0.7); }
+    else if (m.name === 'craneDown') { const r = (1 - u) - (1 - m.u0); v1.x *= 1 + 0.5 * r; v1.z *= 1 + 0.5 * r; v1.y += r * (5 + m.dist * 0.7); }
+    else if (m.name === 'top') { v1.set(0, Math.max(9, m.off.length() * 1.4), 0.01); keepFrame = false; }
+    else if (m.name === 'pov') {
+      const h = travelHeading(C.subject, t), s = C.subject.rig ? C.subject.rig.s : 1;
+      v1.set(Math.sin(h) * 0.24 * s, 0.66 * s, Math.cos(h) * 0.24 * s); yaw = h + Math.PI; pitch = -0.05; keepFrame = false;
+    }
+    v1.add(S); v1.y = Math.max(0.12, v1.y);
+    if (yaw === null) { const a = aim(v1, S); yaw = a.yaw + (keepFrame ? m.dYaw : 0); pitch = a.pitch + (keepFrame ? m.dPitch : 0); }
+    nudge(dt);
+    write(v1, yaw + C.offYaw, pitch + C.offPitch, t);
+  }
+
+  /* ---------- per-frame update, takes ---------- */
+  C.update = (dt, t) => {
+    const I = C.input;
+    if (I.zoom) { C.focalTarget = PV.clamp(C.focalTarget * Math.exp(-I.zoom * 0.0016), 12, 200); }
+    C.focal += (C.focalTarget - C.focal) * (1 - Math.exp(-dt * 9));
+    if (C.mode === 'rail' && C.rail) rail(dt, t);
+    else if (C.mode === 'move' && C.move && C.subject) move(dt, t);
+    else free(dt, t);
+    I.dx = I.dy = I.zoom = 0;
+    if (C.rec) { const p = C.cam.position, q = C.cam.quaternion; C.rec.push(t, p.x, p.y, p.z, q.x, q.y, q.z, q.w, C.focal); }
+  };
+
+  /* After a move or a rail, hand the free camera the exact pose, so switching modes never jumps. */
+  C.syncFree = () => { C.pos.copy(C.cam.position); e1.setFromQuaternion(C.cam.quaternion, 'YXZ'); C.yaw = C.yawTo = e1.y; C.pitch = C.pitchTo = e1.x; C.vel.set(0, 0, 0); };
+
+  C.place = (pos, look, lens) => {
+    C.pos.set(pos[0], pos[1], pos[2]); const a = aim(C.pos, v2.set(look[0], look[1], look[2]));
+    C.yaw = C.yawTo = a.yaw; C.pitch = C.pitchTo = a.pitch; C.vel.set(0, 0, 0);
+    if (lens) C.focal = C.focalTarget = PV.clamp(lens, 12, 200);
+    write(v1.copy(C.pos), C.yaw, C.pitch, 0);
+  };
+
+  /* Puts the camera three-quarters in front of the subject, far enough to hold a full figure. */
+  C.frame = (t) => {
+    if (!C.subject) return;
+    const S = M.where(C.subject, t, new T.Vector3()), h0 = M.headingOf(C.subject, t);
+    const tall = C.subject.rig ? 2.1 * C.subject.rig.s : 2.6, half = PV.deg(C.fovFor(C.focal)) / 2;
+    const d = PV.clamp(tall / (2 * Math.tan(half)) * (C.aspect < 1 ? 1.4 : 1.6), 2.2, 60);
+    /* Try a few angles around the subject and take the first with nothing standing in the way. */
+    const own = C.subject.attached ? C.subject.attached.group : (C.subject.rig ? C.subject.rig.root : C.subject.group);
+    const mine = (o) => { for (let n = o; n; n = n.parent) if (n === own) return true; return false; };
+    const ray = new T.Raycaster(), dir = new T.Vector3();
+    let h = h0 + 0.6;
+    for (const a of [0.6, -0.6, 1.25, -1.25, 2.3, -2.3, Math.PI, 0]) {
+      dir.set(Math.sin(h0 + a) * d, 0.25, Math.cos(h0 + a) * d).normalize();
+      ray.set(S, dir); ray.near = 0.35; ray.far = d + 0.5;
+      if (!ray.intersectObjects(PV.world.content.children, true).some((hit) => !mine(hit.object))) { h = h0 + a; break; }
+    }
+    C.place([S.x + Math.sin(h) * d, S.y + 0.25, S.z + Math.cos(h) * d], [S.x, S.y, S.z]);
+  };
+
+  C.startRec = () => { C.rec = []; };
+  C.stopRec = () => {
+    const r = C.rec; C.rec = null;
+    if (!r || r.length < 18) return null;
+    C.take = { data: Float32Array.from(r), n: r.length / 9, dur: r[r.length - 9] };
+    return C.take;
+  };
+  const qa = new T.Quaternion(), qb = new T.Quaternion();
+  C.playTake = (t) => {
+    const k = C.take, d = k.data; let lo = 0, hi = k.n - 1;
+    t = PV.clamp(t, d[0], k.dur);
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (d[mid * 9] <= t) lo = mid; else hi = mid; }
+    const a = lo * 9, b = hi * 9, span = d[b] - d[a], f = span > 0 ? (t - d[a]) / span : 0;
+    C.cam.position.set(PV.lerp(d[a + 1], d[b + 1], f), PV.lerp(d[a + 2], d[b + 2], f), PV.lerp(d[a + 3], d[b + 3], f));
+    qa.set(d[a + 4], d[a + 5], d[a + 6], d[a + 7]); qb.set(d[b + 4], d[b + 5], d[b + 6], d[b + 7]);
+    C.cam.quaternion.copy(qa).slerp(qb, f);
+    C.cam.fov = C.fovFor(PV.lerp(d[a + 8], d[b + 8], f)); C.cam.aspect = C.aspect; C.cam.updateProjectionMatrix();
+    return PV.lerp(d[a + 8], d[b + 8], f);
+  };
+
+  /* ---------- phone as camera: the device's own orientation drives the view (only where the browser allows it) ---------- */
+  C.gyroAvailable = () => typeof DeviceOrientationEvent !== 'undefined' && window.top === window.self && ('ontouchstart' in window);
+  C.startGyro = async () => {
+    try { if (typeof DeviceOrientationEvent.requestPermission === 'function' && (await DeviceOrientationEvent.requestPermission()) !== 'granted') return false; } catch (e) { return false; }
+    const g = { q: null, yawOffset: 0, first: true, zee: new T.Vector3(0, 0, 1), eu: new T.Euler(), fix: new T.Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2), q0: new T.Quaternion() };
+    g.handler = (ev) => {
+      if (ev.alpha === null || ev.beta === null) return;
+      const orient = PV.deg((screen.orientation && screen.orientation.angle) || window.orientation || 0), q = g.q || new T.Quaternion();
+      g.eu.set(PV.deg(ev.beta), PV.deg(ev.alpha), -PV.deg(ev.gamma), 'YXZ');
+      q.setFromEuler(g.eu).multiply(g.fix).multiply(g.q0.setFromAxisAngle(g.zee, -orient));
+      if (g.first) { g.first = false; e1.setFromQuaternion(q, 'YXZ'); g.yawOffset = C.yaw - e1.y; }
+      g.q = q;
+    };
+    window.addEventListener('deviceorientation', g.handler);
+    C.gyro = g;
+    return new Promise((res) => setTimeout(() => { if (!g.q) { C.stopGyro(); res(false); } else res(true); }, 1200));
+  };
+  C.stopGyro = () => { if (C.gyro) { window.removeEventListener('deviceorientation', C.gyro.handler); C.gyro = null; C.syncFree(); } };
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — the top-down map: where everyone goes, where the camera is, and where you draw its rail. */
+(function (PV) {
+  'use strict';
+  const T = THREE, M = PV.motion, C = PV.cam, W = PV.world;
+  const Mp = PV.map = { cx: 0, cz: 0, scale: 8, stroke: null };
+  const INK = ['#e8563f', '#3d7fd9', '#d99a1c', '#3aa57a', '#a05bd0', '#d8588f'];
+
+  Mp.init = () => { Mp.cam = new T.OrthographicCamera(-10, 10, 10, -10, 1, 2400); Mp.cam.up.set(0, 0, -1); };
+
+  /* Frame all the action plus the camera, with air around it. */
+  Mp.fit = (rect, includeCamera) => {
+    const b = M.bounds();
+    if (includeCamera && C.cam) { b.x0 = Math.min(b.x0, C.cam.position.x); b.x1 = Math.max(b.x1, C.cam.position.x); b.z0 = Math.min(b.z0, C.cam.position.z); b.z1 = Math.max(b.z1, C.cam.position.z); }
+    Mp.cx = (b.x0 + b.x1) / 2; Mp.cz = (b.z0 + b.z1) / 2;
+    const w = Math.max(14, (b.x1 - b.x0) * 1.5 + 10), h = Math.max(14, (b.z1 - b.z0) * 1.5 + 10);
+    Mp.scale = Math.min(rect.w / w, rect.h / h);
+  };
+  Mp.toScreen = (x, z, r) => [r.x + r.w / 2 + (x - Mp.cx) * Mp.scale, r.y + r.h / 2 + (z - Mp.cz) * Mp.scale];
+  Mp.toWorld = (px, py, r) => [Mp.cx + (px - r.x - r.w / 2) / Mp.scale, Mp.cz + (py - r.y - r.h / 2) / Mp.scale];
+  Mp.zoomAt = (px, py, r, factor) => {
+    const before = Mp.toWorld(px, py, r);
+    Mp.scale = PV.clamp(Mp.scale * factor, 0.6, 90);
+    const after = Mp.toWorld(px, py, r);
+    Mp.cx += before[0] - after[0]; Mp.cz += before[1] - after[1];
+  };
+
+  Mp.render = (r, canvasH) => {
+    const cam = Mp.cam, hw = r.w / 2 / Mp.scale, hh = r.h / 2 / Mp.scale, ren = W.renderer;
+    cam.left = -hw; cam.right = hw; cam.top = hh; cam.bottom = -hh; cam.updateProjectionMatrix();
+    cam.position.set(Mp.cx, 900, Mp.cz); cam.lookAt(Mp.cx, 0, Mp.cz);
+    const fog = W.scene.fog; W.scene.fog = null; W.sky.visible = false;
+    ren.setViewport(r.x, canvasH - r.y - r.h, r.w, r.h); ren.setScissor(r.x, canvasH - r.y - r.h, r.w, r.h);
+    ren.render(W.scene, cam);
+    W.scene.fog = fog; W.sky.visible = true;
+  };
+
+  /* Routes, second-by-second ticks, the rail and the camera, drawn as crisp 2D lines over the 3D map. */
+  Mp.draw = (g, r, t, small, theme) => {
+    g.save(); g.beginPath(); g.rect(r.x, r.y, r.w, r.h); g.clip();
+    g.lineJoin = g.lineCap = 'round';
+    const S = (x, z) => Mp.toScreen(x, z, r);
+    M.actors.concat(M.movers).forEach((e, idx) => {
+      if (e.attached) return;
+      const ink = INK[idx % INK.length];
+      g.strokeStyle = ink; g.fillStyle = ink; g.lineWidth = small ? 1.5 : 2.5; g.setLineDash(small ? [3, 4] : [5, 7]);
+      g.beginPath();
+      for (let i = 0; i < e.n; i += 4) { const p = S(e.x[i], e.z[i]); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }
+      g.stroke(); g.setLineDash([]);
+      if (!small) for (let s = 0; s <= M.duration; s++) { const i = Math.min(e.n - 1, s * 60), p = S(e.x[i], e.z[i]); g.beginPath(); g.arc(p[0], p[1], 3, 0, 7); g.fill(); }
+      const i = Math.min(e.n - 1, Math.round(PV.clamp(t, 0, M.duration) * 60)), p = S(e.x[i], e.z[i]), h = e.h[i], rad = small ? 4.5 : 8;
+      g.beginPath(); g.arc(p[0], p[1], rad, 0, 7); g.fill();
+      g.strokeStyle = theme.paper; g.lineWidth = small ? 1.5 : 2.5; g.stroke();
+      g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(p[0] + Math.sin(h) * rad * 1.9, p[1] + Math.cos(h) * rad * 1.9); g.strokeStyle = ink; g.stroke();
+      if (!small && e.label) { g.font = '600 12px Inter, system-ui, sans-serif'; g.lineWidth = 3; g.strokeStyle = theme.paper; g.strokeText(e.label, p[0] + 12, p[1] - 10); g.fillStyle = theme.ink; g.fillText(e.label, p[0] + 12, p[1] - 10); }
+    });
+
+    const line = Mp.stroke || (C.rail && C.mode === 'rail' ? C.rail.pts : null);
+    if (line && line.length > 1) {
+      g.strokeStyle = theme.paper; g.lineWidth = small ? 4 : 7; g.beginPath();
+      line.forEach((q, i) => { const p = S(q[0], q[1]); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.stroke();
+      g.strokeStyle = theme.accent; g.lineWidth = small ? 2 : 3.5; g.stroke();
+      if (!small) { const a = S(line[0][0], line[0][1]); g.fillStyle = theme.accent; g.beginPath(); g.arc(a[0], a[1], 6, 0, 7); g.fill(); g.strokeStyle = theme.paper; g.lineWidth = 2; g.stroke(); }
+    }
+
+    /* The camera, with a wedge for what the current lens sees. */
+    const cp = S(C.cam.position.x, C.cam.position.z), dir = new T.Vector3(0, 0, -1).applyQuaternion(C.cam.quaternion);
+    const yaw = Math.atan2(dir.x, dir.z), half = Math.atan(Math.tan(PV.deg(C.cam.fov) / 2) * C.cam.aspect), len = small ? 26 : 70;
+    g.beginPath(); g.moveTo(cp[0], cp[1]);
+    g.lineTo(cp[0] + Math.sin(yaw - half) * len, cp[1] + Math.cos(yaw - half) * len);
+    g.lineTo(cp[0] + Math.sin(yaw + half) * len, cp[1] + Math.cos(yaw + half) * len); g.closePath();
+    g.fillStyle = theme.wedge; g.fill();
+    g.beginPath(); g.arc(cp[0], cp[1], small ? 4 : 7, 0, 7); g.fillStyle = theme.ink; g.fill(); g.strokeStyle = theme.paper; g.lineWidth = 2; g.stroke();
+    g.restore();
+  };
+
+  /* Drawing a rail: one finger (or the mouse) draws; the line is thinned so the dolly glides. */
+  Mp.beginStroke = (px, py, r) => { Mp.stroke = [Mp.toWorld(px, py, r)]; };
+  Mp.addStroke = (px, py, r) => {
+    if (!Mp.stroke) return;
+    const p = Mp.toWorld(px, py, r), last = Mp.stroke[Mp.stroke.length - 1];
+    if (Math.hypot(p[0] - last[0], p[1] - last[1]) * Mp.scale > 7) Mp.stroke.push(p);
+  };
+  Mp.endStroke = () => {
+    const s = Mp.stroke; Mp.stroke = null;
+    if (!s || s.length < 2) return false;
+    const step = Math.max(1, Math.ceil(s.length / 40)), pts = s.filter((_, i) => i % step === 0);
+    if (pts[pts.length - 1] !== s[s.length - 1]) pts.push(s[s.length - 1]);
+    C.setRail(pts);
+    return !!C.rail;
+  };
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — turns a take into a video file: every frame rendered exactly, then saved as MP4. */
+(function (PV) {
+  'use strict';
+  const M = PV.motion, C = PV.cam, W = PV.world;
+  const X = PV.exporter = { fps: 24, busy: false };
+
+  /* Output size: 1080 on the short side, even numbers (video encoders require them). */
+  X.size = (aspect, short) => {
+    const even = (n) => Math.round(n / 2) * 2;
+    return aspect >= 1 ? { w: even(short * aspect), h: short } : { w: short, h: even(short / aspect) };
+  };
+
+  async function pickEncoder(aspect) {
+    if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined' || !window.Mp4Muxer) return null;
+    for (const short of [1080, 720]) {
+      const s = X.size(aspect, short);
+      for (const codec of ['avc1.640033', 'avc1.640028', 'avc1.4d0028', 'avc1.42e028']) {
+        const cfg = { codec, width: s.w, height: s.h, bitrate: short === 1080 ? 10e6 : 6e6, framerate: X.fps, avc: { format: 'avc' } };
+        try { const r = await VideoEncoder.isConfigSupported(cfg); if (r && r.supported) return cfg; } catch (e) { /* try the next one */ }
+      }
+    }
+    return null;
+  }
+
+  function drawFrame(t, w, h) {
+    M.pose(t, C.cam);
+    const focal = C.playTake(t);
+    W.focusShadow(C.cam.position.x, C.cam.position.z);
+    W.sky.position.copy(C.cam.position);
+    W.renderer.setViewport(0, 0, w, h); W.renderer.setScissorTest(false);
+    W.renderer.render(W.scene, C.cam);
+    return focal;
+  }
+
+  /* onProgress(0..1). Resolves with {blob, ext, w, h, seconds}. */
+  X.render = async (onProgress, signal) => {
+    if (X.busy || !C.take) throw { code: 'busy' };
+    X.busy = true;
+    const ren = W.renderer, canvas = ren.domElement, keepRatio = ren.getPixelRatio(), keepW = canvas.clientWidth, keepH = canvas.clientHeight;
+    const dur = C.take.dur, frames = Math.max(2, Math.round(dur * X.fps));
+    try {
+      const cfg = await pickEncoder(C.aspect);
+      if (cfg) {
+        ren.setPixelRatio(1); ren.setSize(cfg.width, cfg.height, false);
+        const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: 'avc', width: cfg.width, height: cfg.height, frameRate: X.fps }, fastStart: 'in-memory', firstTimestampBehavior: 'offset' });
+        let failed = null;
+        const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failed = e; } });
+        enc.configure(cfg);
+        for (let i = 0; i < frames; i++) {
+          if (signal && signal.aborted) throw { code: 'cancelled' };
+          if (failed) throw failed;
+          drawFrame(i / X.fps, cfg.width, cfg.height);
+          const frame = new VideoFrame(canvas, { timestamp: Math.round(i * 1e6 / X.fps), duration: Math.round(1e6 / X.fps) });
+          enc.encode(frame, { keyFrame: i % (X.fps * 2) === 0 }); frame.close();
+          if (enc.encodeQueueSize > 6 || i % 6 === 0) { onProgress(i / frames); await new Promise((r) => setTimeout(r, enc.encodeQueueSize > 6 ? 12 : 0)); }
+        }
+        await enc.flush(); enc.close(); muxer.finalize();
+        if (failed) throw failed;
+        onProgress(1);
+        return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), ext: 'mp4', w: cfg.width, h: cfg.height, seconds: dur };
+      }
+      return await realtime(onProgress, signal, dur);
+    } finally {
+      ren.setPixelRatio(keepRatio); ren.setSize(keepW, keepH, false);
+      X.busy = false;
+    }
+  };
+
+  /* Fallback for browsers without a frame-by-frame encoder: play the take once and capture it live. */
+  async function realtime(onProgress, signal, dur) {
+    const ren = W.renderer, canvas = ren.domElement;
+    if (!canvas.captureStream || typeof MediaRecorder === 'undefined') throw { code: 'unsupported' };
+    const s = X.size(C.aspect, 1080);
+    ren.setPixelRatio(1); ren.setSize(s.w, s.h, false);
+    const type = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m));
+    if (!type) throw { code: 'unsupported' };
+    const rec = new MediaRecorder(canvas.captureStream(30), { mimeType: type, videoBitsPerSecond: 10e6 }), parts = [];
+    rec.ondataavailable = (e) => { if (e.data.size) parts.push(e.data); };
+    const done = new Promise((r) => { rec.onstop = r; });
+    rec.start();
+    const t0 = performance.now();
+    await new Promise((resolve, reject) => {
+      const tick = () => {
+        const t = (performance.now() - t0) / 1000;
+        if (signal && signal.aborted) { rec.stop(); reject({ code: 'cancelled' }); return; }
+        drawFrame(Math.min(t, dur), s.w, s.h); onProgress(Math.min(1, t / dur));
+        if (t >= dur) resolve(); else requestAnimationFrame(tick);
+      };
+      tick();
+    });
+    rec.stop(); await done;
+    return { blob: new Blob(parts, { type: type.split(';')[0] }), ext: type.includes('mp4') ? 'mp4' : 'webm', w: s.w, h: s.h, seconds: dur };
+  }
+
+  /* Hands the file to the viewer. Inside Claude that is a confirmed save; in a plain browser, a normal download. */
+  X.save = async (blob, filename) => {
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) { await dl.save({ filename, data: blob }); return 'saved'; }
+    if (window.claude) throw { code: 'unavailable' };
+    if (navigator.canShare && window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+      const file = new File([blob], filename, { type: blob.type });
+      if (navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file] }); return 'saved'; }
+        catch (e) { if (e && e.name === 'AbortError') throw { code: 'declined' }; }
+      }
+    }
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return 'saved';
+  };
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — scenes as data: tidy what comes in, remember it, and ask Claude to write one from a description. */
+(function (PV) {
+  'use strict';
+  const S = PV.scenes = { history: [] };
+
+  /* The whole scene language, as given to Claude. Keep it in step with props.js and poses.js. */
+  S.GUIDE = [
+    'You are the scene builder of "Previs Studio", a browser tool that blocks out film shots in simple low-poly 3D (like a Blender greybox) so a director can plan camera moves. Reply with ONE JSON object describing the scene and nothing else.',
+    '',
+    'WORLD. Metres and seconds. Flat open ground at y=0. +x is east (right on the map), +z is south, y is up. A position is [x,z] on the ground or [x,y,z]. "pos" is where the thing STANDS (bottom centre). "rot" is yaw in degrees: 0 faces +z, 90 faces +x.',
+    '',
+    'SCENE = {"name": short title, "duration": 5 to 20, "env": ENV, "objects": [...], "actors": [...], "focus": id of the main actor, "camera": {"pos":[x,y,z],"look":[x,y,z],"lens":35}}',
+    'ENV = {"ground":"#hex","sky":["#top","#horizon"],"sun":[azimuthDeg,elevationDeg],"fog":0..1,"night":false}',
+    '',
+    'OBJECTS, each {"type", "pos", "rot", "color", ...}:',
+    '- shapes: box {"size":[w,h,d]}, cylinder {"size":[diameter,height]}, cone {"size":[diameter,height]}, sphere {"size":diameter}, wedge {"size":[w,h,d]} (a ramp, tall side at -z)',
+    '- nature: tree, pine, palm, bush, rock {"size":height}; mountain {"size":[w,h,d]}; water {"size":[w,0,d]}',
+    '- town: building {"size":[w,h,d],"color","color2":windows}, house {"size":[w,h,d],"color","color2":roof}, tower, arch, tent, stairs {"size":[w,h,d]}, lamp, sign, bench, table, chair, crate, barrel',
+    '- laid between two points {"from":[x,z],"to":[x,z]}: road {"width"}, path {"width"}, river {"width"}, wall {"height","thickness"}, fence {"height"}',
+    '- vehicles (they face +z): car {"style":"sedan|suv|sports|pickup|van|bus|truck","color"}, motorcycle, bicycle',
+    '- group {"children":[objects in local space]}; any object accepts "scale"',
+    '- row {"of":OBJECT,"from":[x,z],"to":[x,z],"count":n} and scatter {"of":OBJECT,"count":n,"area":[x1,z1,x2,z2],"seed":n,"scale":[min,max]} (scatter keeps clear of every route by itself)',
+    '- to make an object MOVE give it "id" and "track":[{"t":seconds,"pos":[x,z]},...]. It turns to face where it is going.',
+    '',
+    'ACTORS, each {"id","name","height":1.75,"build":1,"colors":{"skin","top","bottom","shoes","hair"},"hair":"short|long|bun|ponytail|bald","outfit":"pants|shorts|skirt|dress","sleeves":"long|short|none","props":[...],"keys":[...]}',
+    '- "keys":[{"t":seconds,"pos":[x,z],"do":"...","face":degrees or [x,z] or "id","look":"id" or [x,y,z] or "camera"}]. Between two keys the actor goes in a straight line from one pos to the next; walking or running is picked from the speed (walk about 1.4 m/s, jog 3, sprint 6 to 8). "do" is what the actor does from that key until the next.',
+    '- full body: idle, walk, run, sneak, crouch, kneel, sit, sit_ground, lie, fall, jump, dance, punch, kick, push, climb, swim, fly',
+    '- gestures, added to any of those ("walk phone", "sit talk"): wave, point, talk, phone, think, cheer, clap, hands_up, aim, carry, drink, akimbo, arms_crossed, shield',
+    '- "props":[{"on":"handR|handL|head|back|chest|hips", then any OBJECT, positioned relative to that body part}] for a hat, sword, backpack, box',
+    '- riding: {"in":"vehicleId","seat":[x,y,z],"do":"drive"}. The seat is in the vehicle\'s own space and y is hip height: car driver [0.4,0.5,0.1], passenger [-0.4,0.5,0.1], motorcycle [0,0.8,-0.25] with "do":"ride".',
+    '',
+    'RULES. Build what the description says at real-world scale. Dress the set enough to read the place: 15 to 60 objects, with scatter and row for anything repeated. Keep the action within about 60 m of the origin and leave it room: an open map, never a closed box. Give every object and character its own plausible colour so each can be told apart. Time every beat: someone moves within the first second, and the last key lands on the final second. Place the starting camera where it sees the main character full figure.',
+    '',
+    'EXAMPLE',
+    '{"name":"Beach run","duration":8,"env":{"ground":"#d9c9a3","sky":["#4f8fd0","#eadcc0"],"sun":[220,35],"fog":0.3},"objects":[{"type":"water","pos":[0,-70],"size":[400,0,90],"color":"#4f93b5"},{"type":"scatter","of":{"type":"palm"},"count":14,"area":[-60,8,60,30],"seed":3},{"type":"row","of":{"type":"rock","size":0.8},"from":[-30,-20],"to":[30,-22],"count":7},{"type":"tent","pos":[12,10],"rot":20,"color":"#d07a4a"}],"actors":[{"id":"runner","name":"Runner","colors":{"skin":"#b98463","top":"#e8e2d2","bottom":"#2f4a63","shoes":"#f0f0f0","hair":"#2a1d16"},"outfit":"shorts","sleeves":"short","keys":[{"t":0,"pos":[-18,-4]},{"t":6,"pos":[10,-6]},{"t":7,"pos":[12,-6],"do":"wave","face":[12,10]},{"t":8,"pos":[12,-6],"do":"wave"}]}],"focus":"runner","camera":{"pos":[-10,1.5,4],"look":[-16,1.1,-4],"lens":35}}'
+  ].join('\n');
+
+  /* Whatever arrives (from Claude, a paste, or storage) becomes something the engine can always build. */
+  S.clean = (raw) => {
+    if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (e) { return null; } }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    if (raw.scene && typeof raw.scene === 'object') raw = raw.scene;
+    const s = {
+      name: String(raw.name || raw.title || 'Cena').slice(0, 60),
+      duration: PV.clamp(PV.num(raw.duration, 10), 3, 30),
+      env: raw.env && typeof raw.env === 'object' ? raw.env : {},
+      objects: Array.isArray(raw.objects) ? raw.objects.slice(0, 500) : [],
+      actors: Array.isArray(raw.actors) ? raw.actors.slice(0, 24) : [],
+      focus: raw.focus, camera: raw.camera && typeof raw.camera === 'object' ? raw.camera : null
+    };
+    if (!s.objects.length && !s.actors.length) return null;
+    s.actors.forEach((a, i) => { if (a && typeof a === 'object' && !a.id) a.id = 'actor' + (i + 1); });
+    return s;
+  };
+
+  S.remember = (scene, baseId) => PV.store.set('scene', { base: baseId, scene });
+  S.recall = (baseId) => { const r = PV.store.get('scene'); return r && r.base === baseId ? S.clean(r.scene) : null; };
+  S.forget = () => PV.store.del('scene');
+
+  S.prompt = (request, current) => {
+    let prompt = S.GUIDE + '\n\n';
+    if (current) prompt += 'CURRENT SCENE (the request may ask to change it; if it describes a different scene altogether, replace it):\n' + JSON.stringify(current) + '\n\n';
+    return prompt + 'REQUEST (write "name" in the same language as this request):\n' + request + '\n\nReply with only the complete scene JSON.';
+  };
+
+  /* Ask Claude for a scene. With a scene already open, the request may be a change to it or a whole new one. */
+  S.generate = async (request, current, onText, signal) => {
+    const sample = window.claude && window.claude.use ? await window.claude.use('sample') : null;
+    if (!sample) throw { code: 'unavailable' };
+    const value = await sample.json(S.prompt(request, current), { modelTier: 'complex', cache: false, signal, onText });
+    const scene = S.clean(value);
+    if (!scene) throw { code: 'invalid_json' };
+    return scene;
+  };
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — the scene that opens with the app. Replace PV.DEFAULT_SCENE (and bump the id) to ship another one. */
+window.PV = window.PV || {};
+PV.DEFAULT_ID = 'carona-no-deserto-1';
+PV.DEFAULT_SCENE = {
+  name: 'Carona no deserto',
+  duration: 12,
+  env: { ground: '#c8ac82', sky: ['#5b8fd0', '#f0dbb8'], sun: [245, 30], fog: 0.28 },
+  objects: [
+    { type: 'road', from: [-260, 0], to: [260, 0], width: 9 },
+    { type: 'row', of: { type: 'lamp', size: 7 }, from: [-200, -7], to: [200, -7], count: 11 },
+
+    { type: 'house', pos: [-16, 21], rot: 180, size: [14, 4, 9], color: '#dccbac', color2: '#9c4b3b' },
+    { type: 'tower', pos: [-33, 24], size: [3.6, 9, 3.6], color: '#b9b2a4', color2: '#7a6a5c' },
+    { type: 'bench', pos: [-22, 14.9], rot: 180 },
+    { type: 'sign', pos: [-3, 11], rot: 180, size: [3.4, 6.5, 0.1], color: '#e9dfc8' },
+    { type: 'group', pos: [5, 17], children: [
+      { type: 'box', pos: [0, 4.1, 0], size: [10, 0.35, 6.5], color: '#e7e1d3' },
+      { type: 'cylinder', pos: [-4.4, 0, -2.6], size: [0.3, 4.1], color: '#8d9197' }, { type: 'cylinder', pos: [4.4, 0, -2.6], size: [0.3, 4.1], color: '#8d9197' },
+      { type: 'cylinder', pos: [-4.4, 0, 2.6], size: [0.3, 4.1], color: '#8d9197' }, { type: 'cylinder', pos: [4.4, 0, 2.6], size: [0.3, 4.1], color: '#8d9197' },
+      { type: 'box', pos: [-1.6, 0, 0], size: [0.6, 1.6, 0.45], color: '#c2493a' }, { type: 'box', pos: [1.6, 0, 0], size: [0.6, 1.6, 0.45], color: '#c2493a' },
+      { type: 'box', pos: [0, 0, 0], size: [5.4, 0.16, 1.3], color: '#a7a399' }
+    ] },
+    { type: 'car', pos: [-9.5, 12.6], rot: 105, style: 'sedan', color: '#3f6a9c' },
+    { type: 'barrel', pos: [10.6, 19.6], color: '#4f7a8a' }, { type: 'barrel', pos: [11.5, 19.2], color: '#c7813a' }, { type: 'crate', pos: [9.4, 20.1], size: 0.9 },
+    { type: 'fence', from: [-36, 28], to: [16, 28] },
+    { type: 'palm', pos: [-27, 16], size: 8 }, { type: 'palm', pos: [-1, 25], size: 7 }, { type: 'palm', pos: [14, 24.5], size: 9 },
+    { type: 'sign', pos: [34, -13], rot: 25, size: [9, 8, 0.2], color: '#d8c7a2' },
+
+    { type: 'scatter', of: { type: 'rock' }, count: 44, area: [-170, -130, 170, -10], seed: 5, scale: [0.5, 2.8] },
+    { type: 'scatter', of: { type: 'rock' }, count: 40, area: [-170, 30, 170, 130], seed: 9, scale: [0.5, 2.8] },
+    { type: 'scatter', of: { type: 'bush', color: '#8a9160' }, count: 70, area: [-170, -120, 170, -8], seed: 2, scale: [0.6, 1.5] },
+    { type: 'scatter', of: { type: 'bush', color: '#8a9160' }, count: 60, area: [-170, 30, 170, 120], seed: 4, scale: [0.6, 1.5] },
+    { type: 'scatter', of: { type: 'bush', color: '#97995f' }, count: 12, area: [-40, 6.5, 40, 10], seed: 8, scale: [0.4, 0.8] },
+
+    { type: 'mountain', pos: [-170, -290], size: [300, 100, 220], color: '#b28d6c' },
+    { type: 'mountain', pos: [110, -330], size: [360, 130, 260], color: '#a98670' },
+    { type: 'mountain', pos: [330, -200], size: [240, 75, 220], color: '#b9977a' },
+    { type: 'mountain', pos: [-260, 290], size: [320, 85, 260], color: '#b39174' },
+    { type: 'mountain', pos: [200, 320], size: [300, 95, 240], color: '#ab8a70' },
+
+    { type: 'car', id: 'pickup', style: 'pickup', color: '#b8463a',
+      track: [{ t: 0, pos: [-105, 2.3] }, { t: 6.4, pos: [8, 2.3] }, { t: 8, pos: [17, 2.3] }, { t: 12, pos: [17, 2.3] }] }
+  ],
+  actors: [
+    { id: 'hero', name: 'Viajante', height: 1.78,
+      colors: { skin: '#c99473', top: '#e6dfd0', bottom: '#3c4f6b', shoes: '#5a4334', hair: '#2b1e17' }, sleeves: 'short',
+      props: [
+        { on: 'back', type: 'box', pos: [0, -0.06, -0.21], size: [0.3, 0.42, 0.17], color: '#8a5a3a' },
+        { on: 'head', type: 'cylinder', pos: [0, 0.245, 0], size: [0.4, 0.03], color: '#c9a86a' },
+        { on: 'head', type: 'cylinder', pos: [0, 0.26, 0], size: [0.22, 0.1], color: '#c9a86a' }
+      ],
+      keys: [
+        { t: 0, pos: [-2.4, 6.3] },
+        { t: 4, pos: [3.6, 5.7], do: 'wave', face: 'pickup', look: 'pickup' },
+        { t: 7, pos: [3.6, 5.7], look: 'pickup' },
+        { t: 9.7, pos: [17.5, 4.5], do: 'talk', face: 'pickup', look: 'driver' },
+        { t: 12, pos: [17.5, 4.5], do: 'talk', look: 'driver' }
+      ] },
+    { id: 'driver', name: 'Motorista', in: 'pickup', seat: [0.42, 0.62, 0.5],
+      colors: { skin: '#a8714f', top: '#5f7d5a', bottom: '#3a3a3f', shoes: '#222222', hair: '#1c1512' },
+      keys: [{ t: 0, do: 'drive' }, { t: 9.4, do: 'drive talk', look: 'hero' }] },
+    { id: 'clerk', name: 'Atendente', pos: [-22, 14.8], heading: 180, do: 'sit', look: 'hero', hair: 'long', outfit: 'skirt',
+      colors: { skin: '#d8ab8c', top: '#7c9a6d', bottom: '#4b4038', shoes: '#33291f', hair: '#5a3a22' } },
+    { id: 'cliente', name: 'Cliente', pos: [-8.1, 14.6], heading: 150, do: 'phone', height: 1.7,
+      colors: { skin: '#8d5f44', top: '#c9763f', bottom: '#2f3540', shoes: '#e8e4da', hair: '#17110e' } }
+  ],
+  focus: 'hero',
+  camera: { pos: [10.5, 1.5, 12.5], look: [1.5, 1.15, 5.9], lens: 35 }
+};
+</script>
+<script>
+/* Previs Studio — words on screen (Portuguese and English) and the small pieces of interface built from them. */
+(function (PV) {
+  'use strict';
+  const el = PV.el;
+  const U = PV.ui = {};
+
+  Object.assign(PV.strings, {
+    ask: { pt: 'Descreva a cena ou o que mudar…', en: 'Describe the scene, or what to change…' },
+    askPaste: { pt: 'Cole aqui o JSON de uma cena…', en: 'Paste a scene JSON here…' },
+    askSite: { pt: 'Descreva a cena, ou cole o JSON que o Claude devolveu…', en: 'Describe the scene, or paste the JSON Claude gave you…' },
+    promptCopied: { pt: 'Prompt copiado. Cole no Claude e depois cole aqui o JSON que ele devolver.', en: 'Prompt copied. Paste it into Claude, then paste the JSON it returns here.' },
+    promptFail: { pt: 'Não consegui copiar o prompt neste navegador.', en: 'The prompt could not be copied in this browser.' },
+    gyroOn: { pt: 'Giroscópio ligado: mova o celular para apontar a câmera', en: 'Gyroscope on: move the phone to aim the camera' },
+    gyroOff: { pt: 'Giroscópio desligado', en: 'Gyroscope off' },
+    building: { pt: 'Montando a cena', en: 'Building the scene' },
+    sceneReady: { pt: 'Cena pronta', en: 'Scene ready' },
+    free: { pt: 'Livre', en: 'Free' }, rail: { pt: 'Trilho', en: 'Rail' }, move: { pt: 'Movimentos', en: 'Moves' },
+    rec: { pt: 'Gravar', en: 'Record' }, stop: { pt: 'Parar', en: 'Stop' }, redo: { pt: 'Refazer', en: 'Retake' }, save: { pt: 'Salvar vídeo', en: 'Save video' },
+    hintFree: { pt: 'Arraste para olhar · W A S D anda · Q E sobe e desce · scroll muda a lente', en: 'Drag to look · W A S D moves · Q E goes down and up · scroll changes the lens' },
+    hintTouch: { pt: 'Arraste para olhar · alavanca anda · pinça muda a lente', en: 'Drag to look · stick moves · pinch changes the lens' },
+    hintGyro: { pt: 'Mova o celular para apontar a câmera · alavanca anda', en: 'Move the phone to aim the camera · stick moves' },
+    hintRailMap: { pt: 'Desenhe no mapa o caminho da câmera', en: 'Draw the camera path on the map' },
+    hintRailCam: { pt: 'Arraste para ajustar a mira · toque no mapa para redesenhar', en: 'Drag to adjust the aim · tap the map to redraw' },
+    hintRailDone: { pt: 'Trilho pronto · dê play para ver · desenhe de novo para trocar', en: 'Rail set · press play to preview · draw again to replace it' },
+    hintMove: { pt: 'Enquadre o personagem e escolha um movimento', en: 'Frame the character, then pick a move' },
+    pan: { pt: 'Tripé', en: 'Tripod' }, follow: { pt: 'Seguir', en: 'Follow' }, orbit: { pt: 'Órbita', en: 'Orbit' }, arc: { pt: 'Arco', en: 'Arc' },
+    push: { pt: 'Aproximar', en: 'Push in' }, pull: { pt: 'Afastar', en: 'Pull out' }, craneUp: { pt: 'Grua ↑', en: 'Crane ↑' }, craneDown: { pt: 'Grua ↓', en: 'Crane ↓' },
+    top: { pt: 'De cima', en: 'Top down' }, pov: { pt: 'POV', en: 'POV' }, vertigo: { pt: 'Vertigo', en: 'Vertigo' },
+    format: { pt: 'Formato', en: 'Format' }, look: { pt: 'Visual', en: 'Look' }, colour: { pt: 'Cor', en: 'Colour' }, clay: { pt: 'Argila', en: 'Clay' },
+    handheld: { pt: 'Câmera na mão', en: 'Handheld' }, steady: { pt: 'Fixa', en: 'Steady' }, light: { pt: 'Leve', en: 'Light' }, strong: { pt: 'Forte', en: 'Strong' },
+    gyro: { pt: 'Giroscópio do celular', en: 'Phone gyroscope' }, off: { pt: 'Desligado', en: 'Off' }, on: { pt: 'Ligado', en: 'On' },
+    noGyro: { pt: 'Giroscópio indisponível aqui', en: 'Gyroscope not available here' },
+    scene: { pt: 'Cena', en: 'Scene' }, copy: { pt: 'Copiar JSON', en: 'Copy JSON' }, undo: { pt: 'Cena anterior', en: 'Previous scene' }, reset: { pt: 'Cena inicial', en: 'Starter scene' },
+    copied: { pt: 'JSON da cena copiado', en: 'Scene JSON copied' },
+    h0: { pt: 'Altura no início', en: 'Height at start' }, h1: { pt: 'no fim', en: 'at end' },
+    aimSubject: { pt: 'Mira no alvo', en: 'Aim at target' }, aimForward: { pt: 'Mira à frente', en: 'Aim ahead' },
+    rendering: { pt: 'Gerando o vídeo', en: 'Rendering the video' }, cancel: { pt: 'Cancelar', en: 'Cancel' },
+    saved: { pt: 'Vídeo salvo', en: 'Video saved' }, declined: { pt: 'Não foi salvo. O vídeo continua pronto: toque em Salvar vídeo de novo.', en: 'Not saved. The video is still ready: press Save video again.' },
+    exportFail: { pt: 'Este navegador não conseguiu gerar o vídeo.', en: 'This browser could not render the video.' },
+    saveFail: { pt: 'Não foi possível salvar aqui.', en: 'Saving is not possible here.' },
+    tooShort: { pt: 'Take curto demais. Grave de novo.', en: 'That take was too short. Record again.' },
+    drawFirst: { pt: 'Desenhe o trilho no mapa primeiro', en: 'Draw the rail on the map first' },
+    eUnavailable: { pt: 'Descrever em texto funciona com o app aberto dentro do Claude. Aqui, cole o JSON de uma cena.', en: 'Describing in words works when the app is open inside Claude. Here, paste a scene JSON.' },
+    eDenied: { pt: 'Sem permissão para usar o Claude nesta página.', en: 'This page is not allowed to use Claude.' },
+    eRate: { pt: 'Muitos pedidos agora. Tente de novo em instantes.', en: 'Too many requests right now. Try again shortly.' },
+    eScene: { pt: 'Não consegui montar essa cena. Descreva de outro jeito.', en: 'That scene could not be built. Try describing it another way.' },
+    eJson: { pt: 'Esse JSON não é uma cena válida.', en: 'That JSON is not a valid scene.' },
+    eOther: { pt: 'Algo falhou. Tente de novo.', en: 'Something failed. Try again.' }
+  });
+
+  const ICON = {
+    play: '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M3.2 1.6v10.8L12.2 7z"/></svg>',
+    pause: '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M2.8 1.8h3v10.4h-3zM8.2 1.8h3v10.4h-3z"/></svg>',
+    stop: '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><rect x="2.5" y="2.5" width="9" height="9" rx="1.5"/></svg>',
+    up: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V2M2.5 6.5L7 2l4.5 4.5"/></svg>'
+  };
+  U.icon = (name) => ICON[name];
+
+  /* A row of mutually exclusive buttons. Returns a setter that marks the chosen one. */
+  U.seg = (host, items, onPick, cls) => {
+    host.textContent = '';
+    const buttons = items.map((it) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = it.label; b.dataset.value = it.value; if (cls) b.className = cls;
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', () => onPick(it.value));
+      host.appendChild(b); return b;
+    });
+    return (value) => buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === String(value))));
+  };
+
+  let toastTimer = 0;
+  U.toast = (text, ms) => {
+    const t = el('toast'); t.textContent = text; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ms || 3200);
+  };
+
+  let hintTimer = 0;
+  U.hint = (text, ms) => {
+    const h = el('hint'); clearTimeout(hintTimer);
+    if (!text) { h.classList.add('off'); return; }
+    h.textContent = text; h.classList.remove('off');
+    if (ms !== 0) hintTimer = setTimeout(() => h.classList.add('off'), ms || 6000);
+  };
+
+  /* Canvas drawing cannot read CSS variables by itself, so the palette is read once per theme. */
+  U.theme = () => {
+    const cs = getComputedStyle(document.documentElement), v = (n) => cs.getPropertyValue(n).trim();
+    return { paper: v('--panel'), ink: v('--ink'), accent: v('--rail'), wedge: v('--wedge'), stage: v('--stage'), rec: v('--rec'), line: v('--line') };
+  };
+
+  U.labels = () => {
+    document.querySelectorAll('[data-t]').forEach((n) => { n.textContent = PV.t(n.dataset.t); });
+    el('redo').textContent = PV.t('redo'); el('save').textContent = PV.t('save');
+    el('scene-copy').textContent = PV.t('copy'); el('scene-undo').textContent = PV.t('undo'); el('scene-reset').textContent = PV.t('reset');
+    el('veil-stop').textContent = PV.t('cancel');
+    el('home').setAttribute('aria-label', PV.lang === 'pt' ? 'Enquadrar o alvo' : 'Frame the target');
+    el('opts').setAttribute('aria-label', PV.lang === 'pt' ? 'Ajustes' : 'Settings');
+    el('ask-go').setAttribute('aria-label', PV.lang === 'pt' ? 'Montar a cena' : 'Build the scene');
+    el('lift-up').setAttribute('aria-label', PV.lang === 'pt' ? 'Subir a câmera' : 'Raise the camera');
+    el('lift-down').setAttribute('aria-label', PV.lang === 'pt' ? 'Descer a câmera' : 'Lower the camera');
+    el('time').setAttribute('aria-label', PV.lang === 'pt' ? 'Linha do tempo' : 'Timeline');
+    el('target').setAttribute('aria-label', PV.lang === 'pt' ? 'Alvo da câmera' : 'Camera target');
+    el('gyro').setAttribute('aria-label', PV.lang === 'pt' ? 'Usar o giroscópio do celular' : 'Use the phone gyroscope');
+    el('swap').setAttribute('aria-label', PV.lang === 'pt' ? 'Trocar mapa e câmera' : 'Swap map and camera');
+    document.documentElement.lang = PV.lang === 'pt' ? 'pt-BR' : 'en';
+  };
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — the app itself: what is on screen, the playhead, and the record → review → save flow. */
+(function (PV) {
+  'use strict';
+  const T = THREE, el = PV.el, M = PV.motion, C = PV.cam, W = PV.world, Mp = PV.map, X = PV.exporter, S = PV.scenes, U = PV.ui;
+  const A = PV.app = { state: 'live', t: 0, playing: true, mode: 'free', railView: 'map', takes: 0, w: 0, h: 0, dpr: 1, rects: {}, blob: null, set: {}, custom: false, askChars: 0,
+    prefs: { ratio: '16:9', clay: false, shake: 0 } };
+  A.RATIOS = { '16:9': 16 / 9, '9:16': 9 / 16, '1:1': 1, '4:3': 4 / 3, '21:9': 21 / 9 };
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const R = (r) => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) });
+
+  A.mapMain = () => A.mode === 'rail' && A.railView === 'map' && A.state === 'live';
+
+  A.layout = () => {
+    const stage = el('stage'), w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    A.w = w; A.h = h; A.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (!X.busy) { W.renderer.setPixelRatio(A.dpr); W.renderer.setSize(w, h, false); }
+    const ink = el('ink'); ink.width = Math.round(w * A.dpr); ink.height = Math.round(h * A.dpr);
+    const a = C.aspect, fw = Math.min(w, h * a), fh = fw / a, narrow = w < 620;
+    A.rects.full = { x: 0, y: 0, w, h };
+    A.rects.frame = R({ x: (w - fw) / 2, y: (h - fh) / 2, w: fw, h: fh });
+    const s = PV.clamp(Math.min(w, h) * 0.26, 92, 170);
+    A.rects.mapInset = R({ x: 12, y: narrow ? 60 : h - s - 12, w: s, h: s });
+    let cw = PV.clamp(w * 0.32, 150, 320), ch = cw / a;
+    if (ch > h * 0.42) { ch = h * 0.42; cw = ch * a; }
+    A.rects.camInset = R({ x: 12, y: narrow ? 60 : h - ch - 12, w: cw, h: ch });
+  };
+
+  /* ---------- drawing one frame of the interface ---------- */
+  const fwd = new T.Vector3(), sub = new T.Vector3();
+  const view = (r) => { W.renderer.setViewport(r.x, A.h - r.y - r.h, r.w, r.h); W.renderer.setScissor(r.x, A.h - r.y - r.h, r.w, r.h); };
+  const box = (g, r, color, lw) => { g.strokeStyle = color; g.lineWidth = lw; g.strokeRect(r.x + lw / 2, r.y + lw / 2, r.w - lw, r.h - lw); };
+
+  A.draw = () => {
+    const ren = W.renderer, th = A.theme, g = A.g, mapMain = A.mapMain();
+    ren.setScissorTest(true); view(A.rects.full); ren.setClearColor(th.stage, 1); ren.clear();
+    W.sky.position.copy(C.cam.position);
+    fwd.set(0, 0, -1).applyQuaternion(C.cam.quaternion);
+    let fx = C.cam.position.x + fwd.x * 14, fz = C.cam.position.z + fwd.z * 14;
+    if (C.subject) { M.where(C.subject, A.t, sub); if (Math.hypot(sub.x - C.cam.position.x, sub.z - C.cam.position.z) < 130) { fx = PV.lerp(fx, sub.x, 0.65); fz = PV.lerp(fz, sub.z, 0.65); } }
+    g.setTransform(A.dpr, 0, 0, A.dpr, 0, 0); g.clearRect(0, 0, A.w, A.h);
+    if (mapMain) {
+      W.focusShadow(Mp.cx, Mp.cz);
+      Mp.render(A.rects.full, A.h); Mp.draw(g, A.rects.full, A.t, false, th);
+      W.focusShadow(fx, fz); view(A.rects.camInset); ren.render(W.scene, C.cam); box(g, A.rects.camInset, th.paper, 2);
+    } else {
+      W.focusShadow(fx, fz); view(A.rects.frame); ren.render(W.scene, C.cam);
+      if (A.state === 'rec') box(g, A.rects.frame, th.rec, 3);
+      if (A.w >= 300 && A.h >= 250) {
+        const r = A.rects.mapInset, keep = [Mp.cx, Mp.cz, Mp.scale];
+        Mp.fit(r, true); Mp.render(r, A.h); Mp.draw(g, r, A.t, true, th); box(g, r, th.paper, 2);
+        Mp.cx = keep[0]; Mp.cz = keep[1]; Mp.scale = keep[2];
+      }
+    }
+  };
+
+  let shown = { clock: '', tally: '', lens: '' };
+  A.readouts = () => {
+    const end = A.state === 'review' && C.take ? C.take.dur : M.duration, now = PV.fmtTime(A.t);
+    if (now !== shown.clock) { shown.clock = now; el('clock-now').textContent = now; if (A.state === 'rec') el('tally-time').textContent = 'REC ' + now; }
+    if (!A.scrub) el('time').value = Math.round(A.t / end * 1000);
+    const f = A.focalNow || C.focal, near = C.LENSES.find((v) => Math.abs(v - f) < 0.7), key = near ? 'p' + near : 'f' + Math.round(f);
+    if (key !== shown.lens) { shown.lens = key; A.set.lens(near || ''); const live = el('lens-live'); live.hidden = !!near; live.textContent = Math.round(f) + 'mm'; }
+    if (A.asking) { const k = A.askChars ? ' · ' + (A.askChars / 1000).toFixed(1) + 'k' : ''; const txt = PV.t('building') + '…' + k; if (el('hint').textContent !== txt) U.hint(txt, 0); }
+  };
+
+  /* ---------- the loop ---------- */
+  A.tick = (now) => {
+    requestAnimationFrame(A.tick);
+    const dt = Math.min(0.1, Math.max(0, (now - A.last) / 1000 || 0)); A.last = now;
+    if (A.state === 'export' || !A.w) return;
+    if (A.playing && A.state !== 'count') {
+      A.t += dt;
+      const end = A.state === 'review' && C.take ? C.take.dur : M.duration;
+      if (A.t >= end) { if (A.state === 'rec') { A.t = end; A.finishTake(); } else A.t = 0; }
+    }
+    M.pose(A.t, C.cam);
+    if (A.state === 'review' && C.take) A.focalNow = C.playTake(A.t);
+    else { C.update(dt, A.t); A.focalNow = C.focal; }
+    A.draw(); A.readouts();
+  };
+
+  /* ---------- what is visible for the current state and mode ---------- */
+  A.refresh = () => {
+    const st = A.state, live = st === 'live', mapMain = A.mapMain();
+    A.set.mode(A.mode); A.set.move(A.mode === 'move' && C.move ? C.move.name : '');
+    el('panel').hidden = A.mode === 'free'; el('moves').hidden = A.mode !== 'move'; el('railbox').hidden = A.mode !== 'rail';
+    el('target').hidden = !(M.subjects && M.subjects.length > 1);
+    el('rec').hidden = st === 'review' || st === 'export'; el('redo').hidden = el('save').hidden = st !== 'review';
+    el('rec-text').textContent = PV.t(st === 'rec' || st === 'count' ? 'stop' : 'rec');
+    el('play').innerHTML = U.icon(A.playing && st !== 'count' ? 'pause' : 'play');
+    el('play').setAttribute('aria-label', A.playing ? 'Pause' : 'Play');
+    el('play').disabled = el('time').disabled = st === 'rec' || st === 'count';
+    el('tally').hidden = st !== 'rec'; el('count').hidden = st !== 'count'; el('veil').hidden = st !== 'export';
+    el('lens').hidden = mapMain; el('home').hidden = A.mode === 'rail';
+    const g = el('gyro'); g.hidden = !C.gyroAvailable() || mapMain || A.mode === 'rail'; g.setAttribute('aria-pressed', String(!!C.gyro));
+    /* Keep the screen awake during a take: a phone held as a camera gets no taps. */
+    if ((st === 'rec' || st === 'count') && !A.wake && navigator.wakeLock) navigator.wakeLock.request('screen').then((w) => { A.wake = w; }).catch(() => {});
+    if (live && A.wake) { A.wake.release().catch(() => {}); A.wake = null; }
+    const sticks = coarse && !mapMain && (live || st === 'count' || st === 'rec') && (A.mode === 'free' || (A.mode === 'move' && !C.move));
+    el('stick').hidden = el('lift').hidden = !sticks;
+    const sw = el('swap'), r = mapMain ? A.rects.camInset : A.rects.mapInset;
+    sw.hidden = !(A.mode === 'rail' && live);
+    if (!sw.hidden && r) { sw.style.left = r.x + 'px'; sw.style.top = r.y + 'px'; sw.style.width = r.w + 'px'; sw.style.height = r.h + 'px'; }
+    el('scene-undo').hidden = !S.history.length; el('scene-reset').hidden = !A.custom;
+    el('clock-end').textContent = PV.fmtTime(st === 'review' && C.take ? C.take.dur : M.duration);
+  };
+  A.setState = (s) => { A.state = s; el('app').dataset.state = s; A.refresh(); };
+
+  A.setMode = (m) => {
+    if (A.mode !== m) { C.syncFree(); if (m !== 'move') C.move = null; }
+    A.mode = C.mode = m;
+    if (m === 'rail') { A.railView = C.rail ? 'cam' : 'map'; Mp.fit(A.rects.full, true); }
+    A.refresh();
+    U.hint(PV.t(m === 'free' ? (C.gyro ? 'hintGyro' : coarse ? 'hintTouch' : 'hintFree') : m === 'move' ? 'hintMove' : A.railView === 'map' ? 'hintRailMap' : 'hintRailCam'));
+  };
+
+  A.fillTargets = () => {
+    const sel = el('target'); sel.textContent = '';
+    (M.subjects || []).forEach((e, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = e.label; if (e === C.subject) o.selected = true; sel.appendChild(o); });
+  };
+
+  /* ---------- scenes ---------- */
+  A.loadScene = (scene, keepCamera) => {
+    const id = C.subject ? C.subject.id : null;
+    M.load(scene);
+    C.subject = (keepCamera && id && M.byId[id]) || M.focus;
+    if (!keepCamera) {
+      C.take = null; C.move = null; C.setRail(null); A.blob = null; A.t = 0; A.playing = true;
+      const cam = scene.camera;
+      if (cam && Array.isArray(cam.pos) && Array.isArray(cam.look)) C.place(PV.vec3(cam.pos), PV.vec3(cam.look), PV.num(cam.lens, 35));
+      else { C.focal = C.focalTarget = 35; C.frame(0); }
+      A.state = 'live'; el('app').dataset.state = 'live'; A.mode = C.mode = 'free';
+    }
+    A.fillTargets();
+    if (A.rects.full) Mp.fit(A.rects.full, true);
+    A.refresh();
+  };
+  A.adopt = (scene) => { S.history.push(M.scene); if (S.history.length > 8) S.history.shift(); A.custom = true; A.loadScene(scene); S.remember(scene, PV.DEFAULT_ID); };
+
+  A.ask = async (text) => {
+    if (A.asking) { A.asking.abort(); return; }
+    text = String(text || '').trim(); if (!text) return;
+    if (text[0] === '{') { const sc = S.clean(text); if (!sc) { U.toast(PV.t('eJson')); return; } A.adopt(sc); el('ask-input').value = ''; el('ask-go').disabled = true; U.toast(PV.t('sceneReady')); return; }
+    const form = el('ask'), input = el('ask-input'), go = el('ask-go');
+    if (!A.canAsk) {
+      const prompt = S.prompt(text, M.scene);
+      let ok = false;
+      try { await navigator.clipboard.writeText(prompt); ok = true; }
+      catch (e) { const ta = document.createElement('textarea'); ta.value = prompt; ta.style.cssText = 'position:fixed;left:-99px;top:0;width:1px;height:1px;opacity:0'; document.body.appendChild(ta); ta.select(); try { ok = document.execCommand('copy'); } catch (err) { ok = false; } ta.remove(); }
+      U.toast(PV.t(ok ? 'promptCopied' : 'promptFail'), 7000);
+      return;
+    }
+    A.asking = new AbortController(); A.askChars = 0;
+    form.classList.add('busy'); input.disabled = true; go.innerHTML = U.icon('stop'); go.disabled = false;
+    try {
+      const sc = await S.generate(text, M.scene, (u) => { A.askChars = u.text.length; }, A.asking.signal);
+      A.asking = null; A.adopt(sc); input.value = ''; U.hint(''); U.toast(PV.t('sceneReady'));
+    } catch (e) {
+      const c = e && e.code; U.hint('');
+      if (c !== 'cancelled') U.toast(PV.t(c === 'unavailable' ? 'eUnavailable' : (c === 'not_granted' || c === 'sampling_disabled') ? 'eDenied' : c === 'rate_limited' ? 'eRate' : (c === 'invalid_json' || c === 'refused' || c === 'empty_completion') ? 'eScene' : 'eOther'), 5600);
+    } finally {
+      A.asking = null; form.classList.remove('busy'); input.disabled = false; go.innerHTML = U.icon('up'); go.disabled = !input.value.trim();
+    }
+  };
+
+  /* ---------- record, review, save ---------- */
+  A.togglePlay = () => { if (A.state === 'rec' || A.state === 'count') return; A.playing = !A.playing; A.refresh(); };
+
+  A.record = () => {
+    if (A.state === 'rec') { A.finishTake(); return; }
+    if (A.state === 'count') { clearInterval(A.countTimer); A.playing = true; A.setState('live'); return; }
+    if (A.state !== 'live') return;
+    if (A.mode === 'rail' && !C.rail) { U.toast(PV.t('drawFirst')); return; }
+    if (A.mode === 'rail') A.railView = 'cam';
+    let n = 3; el('count').textContent = n; A.t = 0; A.playing = false; A.setState('count'); U.hint('');
+    A.countTimer = setInterval(() => {
+      if (--n > 0) { el('count').textContent = n; return; }
+      clearInterval(A.countTimer); A.t = 0; C.startRec(); A.playing = true; A.setState('rec');
+    }, 750);
+  };
+  A.finishTake = () => {
+    const take = C.stopRec();
+    A.t = 0; A.playing = true; A.blob = null;
+    if (!take || take.dur < 0.6) { C.take = null; U.toast(PV.t('tooShort')); A.setState('live'); return; }
+    A.takes++; A.setState('review');
+  };
+  A.retake = () => { C.take = null; A.blob = null; A.t = 0; A.playing = true; A.setState('live'); };
+
+  const slug = (s) => String(s || 'previs').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'previs';
+  A.save = async () => {
+    if (A.state !== 'review' || !C.take) return;
+    if (!A.blob) {
+      A.abort = new AbortController(); el('veil-bar').value = 0; el('veil-text').textContent = PV.t('rendering') + '…'; A.setState('export');
+      try { A.blob = await X.render((p) => { el('veil-bar').value = p; el('veil-text').textContent = PV.t('rendering') + ' ' + Math.round(p * 100) + '%'; }, A.abort.signal); }
+      catch (e) { A.setState('review'); A.layout(); if (!e || e.code !== 'cancelled') U.toast(PV.t('exportFail'), 5200); return; }
+      A.setState('review'); A.layout();
+    }
+    try { await X.save(A.blob.blob, slug(M.scene.name) + '-take' + A.takes + '.' + A.blob.ext); U.toast(PV.t('saved') + ' · ' + A.blob.w + '×' + A.blob.h + ' · ' + A.blob.ext.toUpperCase()); }
+    catch (e) { U.toast(PV.t(e && e.code === 'declined' ? 'declined' : 'saveFail'), 5600); }
+  };
+
+  A.savePrefs = () => PV.store.set('prefs', A.prefs);
+  A.applyPrefs = () => {
+    C.aspect = A.RATIOS[A.prefs.ratio] || 16 / 9; C.shake = PV.num(A.prefs.shake, 0); W.clay = !!A.prefs.clay;
+    el('opts-ratio').textContent = A.prefs.ratio;
+    A.set.ratio(A.prefs.ratio); A.set.look(A.prefs.clay ? 'clay' : 'colour'); A.set.shake(String(A.prefs.shake));
+  };
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — hands on the controls: mouse, touch, keyboard, and every button. Starts the app at the end. */
+(function (PV) {
+  'use strict';
+  const el = PV.el, A = PV.app, C = PV.cam, Mp = PV.map, M = PV.motion, U = PV.ui, W = PV.world, S = PV.scenes;
+
+  function buildControls() {
+    A.set.mode = U.seg(el('modes'), ['free', 'rail', 'move'].map((v) => ({ value: v, label: PV.t(v) })), (v) => A.setMode(v));
+    A.set.lens = U.seg(el('lens'), C.LENSES.map((v) => ({ value: v, label: String(v) })), (v) => { C.focalTarget = v; });
+    const live = document.createElement('span'); live.id = 'lens-live'; live.hidden = true; el('lens').appendChild(live);
+    A.set.move = U.seg(el('moves'), C.MOVES.map((v) => ({ value: v, label: PV.t(v) })), (v) => {
+      if (C.move && C.move.name === v) { C.syncFree(); C.move = null; A.refresh(); return; }
+      C.setMove(v, A.t); A.t = 0; A.playing = true; A.refresh(); U.hint('');
+    }, 'chip');
+    A.set.ratio = U.seg(el('ratios'), Object.keys(A.RATIOS).map((v) => ({ value: v, label: v })), (v) => { A.prefs.ratio = v; A.blob = null; A.applyPrefs(); A.savePrefs(); A.layout(); A.refresh(); });
+    A.set.look = U.seg(el('looks'), [{ value: 'colour', label: PV.t('colour') }, { value: 'clay', label: PV.t('clay') }], (v) => { A.prefs.clay = v === 'clay'; A.blob = null; A.applyPrefs(); A.savePrefs(); A.loadScene(M.scene, true); });
+    A.set.shake = U.seg(el('shakes'), [{ value: '0', label: PV.t('steady') }, { value: '0.5', label: PV.t('light') }, { value: '1', label: PV.t('strong') }], (v) => { A.prefs.shake = +v; A.applyPrefs(); A.savePrefs(); });
+    A.set.aim = U.seg(el('aims'), [{ value: 'subject', label: PV.t('aimSubject') }, { value: 'forward', label: PV.t('aimForward') }], (v) => { C.railAim = v; A.set.aim(v); });
+    A.set.aim('subject');
+    el('gyro').addEventListener('click', async () => {
+      if (C.gyro) { C.stopGyro(); A.refresh(); U.toast(PV.t('gyroOff')); return; }
+      const ok = await C.startGyro();
+      if (ok) { if (C.move) C.move = null; A.setMode('free'); U.toast(PV.t('gyroOn'), 4200); } else U.toast(PV.t('noGyro'), 4200);
+      A.refresh();
+    });
+  }
+
+  const closeSheet = () => { el('sheet').hidden = true; el('opts').setAttribute('aria-expanded', 'false'); };
+
+  function wireButtons() {
+    el('play').addEventListener('click', A.togglePlay);
+    el('rec').addEventListener('click', A.record);
+    el('redo').addEventListener('click', A.retake);
+    el('save').addEventListener('click', A.save);
+    el('veil-stop').addEventListener('click', () => A.abort && A.abort.abort());
+    el('home').addEventListener('click', () => { if (C.move) { C.move = null; } C.frame(A.t); A.refresh(); });
+    el('swap').addEventListener('click', () => { A.railView = A.railView === 'map' ? 'cam' : 'map'; A.refresh(); U.hint(PV.t(A.railView === 'map' ? 'hintRailMap' : 'hintRailCam')); });
+    el('opts').addEventListener('click', () => { const s = el('sheet'); s.hidden = !s.hidden; el('opts').setAttribute('aria-expanded', String(!s.hidden)); });
+
+    const time = el('time');
+    time.addEventListener('input', () => { A.scrub = true; const end = A.state === 'review' && C.take ? C.take.dur : M.duration; A.t = time.value / 1000 * end; });
+    time.addEventListener('change', () => { A.scrub = false; });
+    time.addEventListener('pointerup', () => { A.scrub = false; });
+
+    el('target').addEventListener('change', (e) => {
+      C.subject = M.subjects[+e.target.value] || C.subject;
+      if (C.move) C.setMove(C.move.name, A.t);
+    });
+    const height = (id, key) => {
+      const input = el(id), out = el(id + '-out'), show = () => { C[key] = +input.value; out.textContent = (+input.value).toFixed(1).replace('.', PV.lang === 'pt' ? ',' : '.') + ' m'; };
+      input.addEventListener('input', show); show();
+    };
+    height('rail-h0', 'railH0'); height('rail-h1', 'railH1');
+
+    const input = el('ask-input'), go = el('ask-go');
+    go.innerHTML = U.icon('up');
+    input.addEventListener('input', () => { go.disabled = !input.value.trim(); });
+    el('ask').addEventListener('submit', (e) => { e.preventDefault(); A.ask(input.value); });
+    A.canAsk = !!(window.claude && window.claude.use);
+    input.placeholder = PV.t(A.canAsk ? 'ask' : 'askSite');
+    if (A.canAsk) window.claude.use('sample').then((s) => { if (!s) { A.canAsk = false; input.placeholder = PV.t('askSite'); } });
+
+    el('scene-copy').addEventListener('click', async () => {
+      const text = JSON.stringify(M.scene);
+      try { await navigator.clipboard.writeText(text); U.toast(PV.t('copied')); }
+      catch (e) { closeSheet(); input.value = text; input.focus(); input.select(); }
+    });
+    el('scene-undo').addEventListener('click', () => { const prev = S.history.pop(); if (!prev) return; A.loadScene(prev); S.remember(prev, PV.DEFAULT_ID); closeSheet(); });
+    el('scene-reset').addEventListener('click', () => { S.history.push(M.scene); A.custom = false; S.forget(); A.loadScene(S.clean(JSON.parse(JSON.stringify(PV.DEFAULT_SCENE)))); closeSheet(); });
+  }
+
+  function wireStage() {
+    const stage = el('stage'), pts = new Map();
+    let pinch = 0, centre = null, drawing = false;
+    const isControl = (t) => !!(t && t.closest && t.closest('button, input, form, select, #sheet, #stick, #lift, #veil'));
+    const local = (e) => { const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const two = () => { const [a, b] = [...pts.values()]; return { d: Math.hypot(a[0] - b[0], a[1] - b[1]), c: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; };
+
+    stage.addEventListener('pointerdown', (e) => {
+      if (isControl(e.target)) return;
+      closeSheet(); el('ask-input').blur();
+      try { stage.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
+      const p = local(e); pts.set(e.pointerId, p);
+      if (pts.size === 1 && A.mapMain()) { drawing = true; Mp.beginStroke(p[0], p[1], A.rects.full); }
+      if (pts.size === 2) { if (drawing) { drawing = false; Mp.stroke = null; } const t = two(); pinch = t.d; centre = t.c; }
+      if (!A.asking) U.hint('');
+    });
+    stage.addEventListener('pointermove', (e) => {
+      const last = pts.get(e.pointerId); if (!last) return;
+      const p = local(e), dx = p[0] - last[0], dy = p[1] - last[1]; pts.set(e.pointerId, p);
+      if (pts.size === 1) {
+        if (drawing) Mp.addStroke(p[0], p[1], A.rects.full);
+        else if (!A.mapMain() && A.state !== 'review') { C.input.dx += dx; C.input.dy += dy; }
+      } else if (pts.size === 2) {
+        const t = two();
+        if (A.mapMain()) { Mp.zoomAt(t.c[0], t.c[1], A.rects.full, t.d / (pinch || t.d)); Mp.cx -= (t.c[0] - centre[0]) / Mp.scale; Mp.cz -= (t.c[1] - centre[1]) / Mp.scale; }
+        else if (A.state !== 'review') C.input.zoom -= (t.d - pinch) * 2.4;
+        pinch = t.d; centre = t.c;
+      }
+    });
+    const up = (e) => {
+      if (!pts.has(e.pointerId)) return; pts.delete(e.pointerId);
+      if (drawing && pts.size === 0) { drawing = false; if (Mp.endStroke()) { A.refresh(); U.hint(PV.t('hintRailDone')); } }
+    };
+    stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+    stage.addEventListener('wheel', (e) => {
+      if (e.target.closest && e.target.closest('#sheet')) return;
+      e.preventDefault();
+      const d = e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY, p = local(e);
+      if (A.mapMain()) Mp.zoomAt(p[0], p[1], A.rects.full, Math.exp(-d * 0.0016));
+      else if (A.state !== 'review') C.input.zoom += d;
+    }, { passive: false });
+
+    /* Touch: a stick to walk the camera and two buttons to raise or lower it. */
+    const stick = el('stick'), knob = stick.firstElementChild; let sid = null;
+    const stickMove = (e) => {
+      const r = stick.getBoundingClientRect(); let x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2);
+      const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
+      knob.style.transform = 'translate(' + x * 30 + 'px,' + y * 30 + 'px)'; C.input.x = x; C.input.z = -y;
+    };
+    const stickEnd = (e) => { if (e.pointerId !== sid) return; sid = null; knob.style.transform = ''; C.input.x = C.input.z = 0; };
+    stick.addEventListener('pointerdown', (e) => { sid = e.pointerId; try { stick.setPointerCapture(sid); } catch (err) { /* fine */ } stickMove(e); });
+    stick.addEventListener('pointermove', (e) => { if (e.pointerId === sid) stickMove(e); });
+    stick.addEventListener('pointerup', stickEnd); stick.addEventListener('pointercancel', stickEnd);
+    for (const [id, dir] of [['lift-up', 1], ['lift-down', -1]]) {
+      const b = el(id), off = () => { C.input.y = 0; };
+      b.addEventListener('pointerdown', (e) => { try { b.setPointerCapture(e.pointerId); } catch (err) { /* fine */ } C.input.y = dir; });
+      b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off);
+    }
+  }
+
+  function wireKeys() {
+    const keys = {};
+    const typing = () => { const a = document.activeElement; return !!a && ((a.tagName === 'INPUT' && a.type === 'text') || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT'); };
+    const apply = () => {
+      C.input.z = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0);
+      C.input.x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+      C.input.y = (keys.e ? 1 : 0) - (keys.q ? 1 : 0); C.input.fast = !!keys.shift;
+    };
+    window.addEventListener('keydown', (e) => {
+      if (typing() || e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === ' ') { if (document.activeElement && document.activeElement.tagName === 'BUTTON') return; e.preventDefault(); A.togglePlay(); return; }
+      if (k === 'escape') { closeSheet(); return; }
+      if (k >= '1' && k <= '6') { C.focalTarget = C.LENSES[+k - 1]; return; }
+      if (k.startsWith('arrow')) e.preventDefault();
+      keys[k] = true; apply();
+    });
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; apply(); });
+    window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; apply(); });
+  }
+
+  A.start = () => {
+    W.init(el('gl')); C.init(); Mp.init();
+    A.g = el('ink').getContext('2d'); A.theme = U.theme();
+    const saved = PV.store.get('prefs'); if (saved && typeof saved === 'object') Object.assign(A.prefs, saved);
+    if (!A.RATIOS[A.prefs.ratio]) A.prefs.ratio = '16:9';
+    U.labels(); buildControls(); wireButtons(); wireStage(); wireKeys();
+    A.applyPrefs(); A.layout();
+    const kept = S.recall(PV.DEFAULT_ID);
+    A.custom = !!kept;
+    A.loadScene(kept || S.clean(JSON.parse(JSON.stringify(PV.DEFAULT_SCENE))));
+    U.hint(PV.t(window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 'hintTouch' : 'hintFree'), 9000);
+
+    new ResizeObserver(() => { A.layout(); A.refresh(); }).observe(el('stage'));
+    const retheme = () => { A.theme = U.theme(); };
+    if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', retheme);
+    new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    A.last = performance.now(); requestAnimationFrame(A.tick);
+  };
+
+  if (window.THREE) A.start();
+  else el('stage').insertAdjacentHTML('beforeend', '<p style="position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center">' + (PV.lang === 'pt' ? 'Não foi possível carregar o motor 3D. Verifique a conexão e recarregue.' : 'The 3D engine could not load. Check the connection and reload.') + '</p>');
+})(window.PV);
+</script>
+</body>
+</html>
