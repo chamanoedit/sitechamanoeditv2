@@ -53,13 +53,29 @@
 
   #top { position: absolute; inset: 10px 10px auto 10px; display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; pointer-events: none; }
   #top > * { pointer-events: auto; }
-  #ask { flex: 1; min-width: 0; max-width: 520px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; border-radius: 20px; }
+  #lead { flex: 1; min-width: 0; max-width: 520px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; justify-items: start; }
+  #ask { width: 100%; margin: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; border-radius: 20px; }
   #ask svg { flex: none; color: var(--muted); }
   #ask-input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; font-size: 14px; }
   #ask-input::placeholder { color: var(--muted); }
   #ask-go { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--panel); display: grid; place-items: center; }
   #ask-go[disabled] { opacity: 0.25; cursor: default; }
   #ask.busy #ask-go { background: var(--chip); color: var(--ink); }
+  #ask-photo { flex: none; width: 30px; height: 30px; margin-right: -2px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); }
+  #ask-photo:hover, #ask-photo:focus-visible { color: var(--ink); }
+  #ask.busy #ask-photo { visibility: hidden; }
+
+  /* Photos of the real place: they go to Claude with the request, and any of them can be laid over the 3D to compare. */
+  #shots { max-width: 100%; display: flex; gap: 6px; padding: 5px; border-radius: 14px; overflow-x: auto; scrollbar-width: none; }
+  #shots::-webkit-scrollbar { display: none; }
+  .shot { position: relative; flex: none; }
+  .shot .pic { display: block; width: 44px; height: 44px; border-radius: 9px; overflow: hidden; border: 2px solid transparent; background: var(--chip); }
+  .shot .pic[aria-pressed="true"] { border-color: var(--rail); }
+  .shot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .shot .x { position: absolute; top: -3px; right: -3px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--panel); }
+  .shot .x::before { content: ""; position: absolute; inset: -7px; }
+  #ghost { position: absolute; object-fit: contain; opacity: 0.5; pointer-events: none; }
+  #app:not([data-state="live"]) #ghost { display: none; }
   #opts { height: 40px; padding: 0 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; }
 
   #lens { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 24px; }
@@ -167,6 +183,7 @@
     #lens button { min-width: 32px; height: 34px; padding: 0 6px; }
     #railbox input[type="range"] { width: 76px; }
     #hint { bottom: 186px; }
+    #app[data-photos] #toast { top: calc(136px + env(safe-area-inset-top, 0px)); }
     /* Narrow screens: the credit while shooting, the next step once there is a take. */
     #pitch { display: none; text-align: left; }
     #app[data-state="review"] #pitch, #app[data-state="export"] #pitch { display: block; }
@@ -180,15 +197,23 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <canvas id="ink"></canvas>
+    <img id="ghost" alt="" hidden>
 
     <div id="top">
+      <div id="lead">
       <form id="ask" class="glass" autocomplete="off">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l1.6 4.9L14.5 6.5 9.6 8.1 8 13 6.4 8.1 1.5 6.5l4.9-1.6zM13 11l.7 2.3L16 14l-2.3.7L13 17l-.7-2.3L10 14l2.3-.7z"/></svg>
         <input id="ask-input" type="text" enterkeyhint="send" spellcheck="false">
+        <button id="ask-photo" type="button">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.8" y="2.8" width="12.4" height="10.4" rx="2"/><circle cx="5.6" cy="6.3" r="1.1"/><path d="M2.3 11.5l3.3-3.1 2.6 2.4 2.2-2 3.3 2.9"/></svg>
+        </button>
         <button id="ask-go" type="submit" disabled>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V2M2.5 6.5L7 2l4.5 4.5"/></svg>
         </button>
       </form>
+      <div id="shots" class="glass" hidden></div>
+      <input id="photo-file" type="file" accept="image/*" multiple hidden>
+      </div>
       <button id="opts" class="glass" type="button" aria-haspopup="true" aria-expanded="false">
         <span id="opts-ratio">16:9</span>
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M1.5 4h6M11 4h1.5M1.5 10H3M6.5 10h6"/><circle cx="9.2" cy="4" r="1.7"/><circle cx="4.8" cy="10" r="1.7"/></svg>
@@ -360,6 +385,8 @@ window.PV = window.PV || {};
     else if (name === 'sphere') g = new T.SphereGeometry(0.5, 14, 10).translate(0, 0.5, 0);
     else if (name === 'ico') g = new T.IcosahedronGeometry(0.5, 0).translate(0, 0.5, 0);
     else if (name === 'wheel') g = new T.CylinderGeometry(0.5, 0.5, 1, 14).rotateZ(Math.PI / 2);
+    /* One face, seen from +z only: what rooms are made of, so a camera behind a wall looks straight through it. */
+    else if (name === 'pane') g = new T.PlaneGeometry(1, 1).translate(0, 0.5, 0);
     else if (name === 'wedge') {
       /* A ramp: full height at the back (-z), zero at the front (+z). */
       const s = new T.Shape();
@@ -372,7 +399,7 @@ window.PV = window.PV || {};
   }
   W.unit = unit;
 
-  const SHAPES = { box: 'box', cube: 'box', cylinder: 'cyl', cyl: 'cyl', cone: 'cone', sphere: 'sphere', ball: 'sphere', ico: 'ico', wedge: 'wedge', ramp: 'wedge' };
+  const SHAPES = { box: 'box', cube: 'box', cylinder: 'cyl', cyl: 'cyl', cone: 'cone', sphere: 'sphere', ball: 'sphere', ico: 'ico', wedge: 'wedge', ramp: 'wedge', pane: 'pane' };
 
   /* Clay look: every surface becomes a near-uniform grey, like Blender's solid viewport. */
   const tmpC = new T.Color();
@@ -418,7 +445,7 @@ window.PV = window.PV || {};
         size = d.length >= 3 ? d : [d[0], d[1] === undefined ? d[0] : d[1], d[0]];
       } else if (!Array.isArray(size)) size = [PV.num(size, 1), PV.num(size, 1), PV.num(size, 1)];
       const m = parent.clone().multiply(matrixOf({ pos: o.pos, rot: o.rot, size }, true));
-      out.push({ geo: SHAPES[type], matrix: m, color: o.color || '#9a9a9a' });
+      out.push({ geo: SHAPES[type], matrix: m, color: o.color || '#9a9a9a', flat: o.shadow === false });
       return;
     }
     /* On a scatter, "scale" is the random size range of its items, not a stretch of the whole field. */
@@ -428,14 +455,14 @@ window.PV = window.PV || {};
     if (type === 'group') kids = o.children;
     else if (type === 'row') kids = PV.props.row(o);
     else if (type === 'scatter') kids = PV.props.scatter(o);
-    else if (PV.props.presets[type]) kids = PV.props.presets[type](o);
+    else if (PV.props.find(type)) kids = PV.props.find(type)(o);
     else kids = [{ type: 'box', size: Array.isArray(o.size) ? o.size : [1, 1, 1], color: o.color }];
     if (Array.isArray(kids)) for (const k of kids) expand(k, m, out, depth + 1);
   }
   W.expand = (o, parent) => { const out = []; expand(o, parent || new T.Matrix4(), out, 0); return out; };
 
   /* Many static parts become one mesh with per-vertex colour: a whole city costs one draw call. */
-  function batch(parts) {
+  function batch(parts, cast) {
     let n = 0;
     for (const p of parts) n += unit(p.geo).attributes.position.count;
     const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3);
@@ -459,17 +486,17 @@ window.PV = window.PV || {};
     g.setAttribute('normal', new T.BufferAttribute(nor, 3));
     g.setAttribute('color', new T.BufferAttribute(col, 3));
     const mesh = new T.Mesh(g, new T.MeshLambertMaterial({ vertexColors: true }));
-    mesh.castShadow = mesh.receiveShadow = true;
+    mesh.castShadow = cast !== false; mesh.receiveShadow = true;
     return mesh;
   }
   W.batch = batch;
 
   /* A moving object keeps its parts as separate meshes inside one group, so wheels can spin. */
   W.group = (parts) => {
-    const g = new T.Group(), fixed = [];
+    const g = new T.Group(), fixed = [], flat = [];
     g.userData.wheels = [];
     for (const p of parts) {
-      if (!p.wheel) { fixed.push(p); continue; }
+      if (!p.wheel) { (p.flat ? flat : fixed).push(p); continue; }
       const m = new T.Mesh(unit('wheel'), W.mat(p.color));
       p.matrix.decompose(m.position, m.quaternion, m.scale);
       m.castShadow = true;
@@ -479,6 +506,7 @@ window.PV = window.PV || {};
       spin.add(m); g.add(spin); g.userData.wheels.push(m);
     }
     if (fixed.length) g.add(batch(fixed));
+    if (flat.length) g.add(batch(flat, false));
     return g;
   };
 
@@ -497,9 +525,8 @@ window.PV = window.PV || {};
     W.sun = new T.DirectionalLight(0xffffff, 2.4);
     W.sun.castShadow = true;
     W.sun.shadow.mapSize.set(2048, 2048);
-    const sc = W.sun.shadow.camera;
-    sc.left = -42; sc.right = 42; sc.top = 42; sc.bottom = -42; sc.near = 1; sc.far = 400;
-    W.sun.shadow.bias = -0.0005; W.sun.shadow.normalBias = 0.04;
+    W.sun.shadow.camera.near = 1; W.sun.shadow.camera.far = 400;
+    W.sun.shadow.bias = -0.0005; W.shadowSpan(84);
     W.scene.add(W.hemi, W.sun, W.sun.target);
 
     const dome = new T.SphereGeometry(1500, 24, 14);
@@ -533,7 +560,7 @@ window.PV = window.PV || {};
     return t;
   }
 
-  W.setEnv = (env) => {
+  W.setEnv = (env, indoor) => {
     env = env || {};
     const sky = Array.isArray(env.sky) ? env.sky : ['#7fa9d6', '#dfe6ea'];
     const top = W.color(sky[0], '#7fa9d6').clone(), hor = W.color(sky[1], '#dfe6ea').clone();
@@ -554,18 +581,30 @@ window.PV = window.PV || {};
     gm.needsUpdate = true;
 
     const sun = Array.isArray(env.sun) ? env.sun : [135, 42];
-    const az = PV.deg(PV.num(sun[0], 135)), el = PV.deg(PV.clamp(PV.num(sun[1], 42), 6, 88));
+    /* A room at night is lit by its own lamps: light from above, nearly as bright as by day, with the dark left outside the windows. */
+    const lamps = !!(indoor && env.night);
+    const az = PV.deg(PV.num(sun[0], 135)), el = PV.deg(PV.clamp(PV.num(sun[1], 42), lamps ? 62 : 6, 88));
     W.sunDir = new T.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
-    const night = env.night ? 0.45 : 1;
-    W.hemi.color.copy(top).lerp(new T.Color(0xffffff), 0.55);
+    const night = lamps ? 0.85 : env.night ? 0.45 : 1;
+    W.hemi.color.copy(top).lerp(new T.Color(0xffffff), lamps ? 0.9 : 0.55);
     W.hemi.groundColor.copy(gm.color).multiplyScalar(0.75);
-    W.hemi.intensity = 2.3 * night;
-    W.sun.intensity = 2.7 * night * (0.6 + 0.4 * Math.sin(el));
+    /* Indoors most light has bounced off a wall first: softer sun, more fill, and a floor that lights the ceiling. */
+    if (indoor) W.hemi.groundColor.lerp(new T.Color(0xffffff), 0.5);
+    W.hemi.intensity = (indoor ? 2.75 : 2.3) * night;
+    W.sun.intensity = (indoor ? 1.7 : 2.7) * night * (0.6 + 0.4 * Math.sin(el));
+  };
+
+  /* How many metres of ground the shadow map covers: a street needs 84, a room a quarter of that, and the same
+     pixels spread over less ground are what keeps the shadow of a chair leg or a bottle crisp. */
+  W.shadowSpan = (span) => {
+    const sc = W.sun.shadow.camera, half = span / 2;
+    W.span = span; sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.updateProjectionMatrix();
+    W.sun.shadow.normalBias = span / 2048;
   };
 
   /* The shadow map follows the action so it stays sharp anywhere on a wide map. */
   W.focusShadow = (x, z) => {
-    const texel = 84 / 2048;
+    const texel = W.span / 2048;
     x = Math.round(x / texel) * texel; z = Math.round(z / texel) * texel;
     W.sun.target.position.set(x, 0, z);
     W.sun.position.set(x + W.sunDir.x * 160, W.sunDir.y * 160, z + W.sunDir.z * 160);
@@ -689,6 +728,111 @@ window.PV = window.PV || {};
   pr.bicycle = (o) => { const c = o.color || '#3f6f8f';
     return [Wh(0, 0.34, 0.52, 0.34, 0.04), Wh(0, 0.34, -0.52, 0.34, 0.04), B([0, 0.52, 0], [0.04, 0.05, 0.95], c), B([0, 0.52, -0.2], [0.04, 0.42, 0.04], c),
       B([0, 0.92, -0.24], [0.13, 0.04, 0.26], '#26282b'), B([0, 0.52, 0.44], [0.04, 0.5, 0.04], c, [-14, 0, 0]), B([0, 1.0, 0.36], [0.5, 0.04, 0.04], '#33363a')]; };
+
+  /* ----- indoors. A room is drawn from the inside only: floor, walls and ceiling are single faces that look into it,
+     so a camera standing outside the walls (or the map, from above) sees straight in. They cast no shadow either,
+     which lets the sun reach the furniture the way light does on a film set built without a roof. ----- */
+  const Pn = (pos, size, color, rot) => ({ type: 'pane', pos, size, color, rot, shadow: false });
+  /* Each wall: which way it lies from the centre (x, z), its yaw, and whether "at" grows against its own left-to-right. */
+  const WALLS = { north: [0, -1, 0, 1], south: [0, 1, 180, -1], west: [-1, 0, 90, -1], east: [1, 0, -90, 1] };
+  const sideOf = (v) => Object.keys(WALLS).find((k) => k[0] === String(v || '').trim().toLowerCase()[0]);
+  pr.room = (o) => {
+    const s = dims(o, 4, 2.6, 4), w = Math.max(1, s[0]), h = PV.clamp(s[1], 1.8, 40), d = Math.max(1, s[2]);
+    const wallC = o.color || '#e3ded2', trim = o.color2 || '#f3f0e9';
+    const out = [Pn([0, 0.02, d / 2], [w, d], o.floor || '#b79d7c', [-90, 0, 0])];
+    if (o.ceiling !== false) out.push(Pn([0, h, -d / 2], [w, d], typeof o.ceiling === 'string' ? o.ceiling : '#f0ede6', [90, 0, 0]));
+    const built = Array.isArray(o.walls) ? o.walls.map(sideOf) : Object.keys(WALLS);
+    const list = (v, door) => (Array.isArray(v) ? v : []).filter((x) => x && typeof x === 'object').map((x) => ({ x, door, side: sideOf(x.wall) }));
+    const holes = list(o.doors, true).concat(list(o.windows, false));
+    for (const name of Object.keys(WALLS)) {
+      if (!built.includes(name)) continue;
+      const [sx, sz, yaw, dir] = WALLS[name], len = sx ? d : w, kids = [];
+      /* Openings of this wall in its own frame: x runs along it, the room is on the +z side. */
+      const cut = holes.filter((q) => q.side === name).map((q) => {
+        const ww = PV.clamp(N(q.x.width, q.door ? 0.9 : 1.2), 0.3, Math.max(0.3, len - 0.2));
+        const c = PV.clamp(dir * N(q.x.at, 0), -len / 2 + ww / 2 + 0.1, len / 2 - ww / 2 - 0.1);
+        const y0 = q.door ? 0 : PV.clamp(N(q.x.sill, 0.9), 0, h - 0.5), y1 = Math.min(h - 0.08, y0 + Math.max(0.3, N(q.x.height, q.door ? 2.1 : 1.2)));
+        return { x0: c - ww / 2, x1: c + ww / 2, c, ww, y0, y1, door: q.door, raw: q.x };
+      }).sort((a, b) => a.x0 - b.x0);
+      let at = -len / 2;
+      for (const k of cut) {
+        if (k.x0 < at + 0.02) continue;
+        kids.push(Pn([(at + k.x0) / 2, 0, 0], [k.x0 - at, h], wallC));
+        if (k.y0 > 0) kids.push(Pn([k.c, 0, 0], [k.ww, k.y0], wallC));
+        kids.push(Pn([k.c, k.y1, 0], [k.ww, h - k.y1], wallC));
+        if (k.door) {
+          kids.push(B([k.x0 - 0.03, 0, 0], [0.06, k.y1 + 0.06, 0.13], trim), B([k.x1 + 0.03, 0, 0], [0.06, k.y1 + 0.06, 0.13], trim), B([k.c, k.y1, 0], [k.ww, 0.06, 0.13], trim));
+          if (k.raw.leaf !== false) kids.push({ type: 'group', pos: [k.x0, 0, 0], rot: k.raw.open ? -78 : 0, children: [B([k.ww / 2, 0, 0], [k.ww, k.y1, 0.045], k.raw.color || '#8b6b4d')] });
+        } else {
+          kids.push(B([k.c, k.y0 - 0.04, 0.04], [k.ww + 0.14, 0.04, 0.18], trim), B([k.c, k.y1, 0], [k.ww + 0.1, 0.05, 0.1], trim),
+            B([k.x0 - 0.025, k.y0, 0], [0.05, k.y1 - k.y0, 0.1], trim), B([k.x1 + 0.025, k.y0, 0], [0.05, k.y1 - k.y0, 0.1], trim));
+          if (k.ww >= 1) kids.push(B([k.c, k.y0, 0], [0.04, k.y1 - k.y0, 0.05], trim));
+        }
+        at = k.x1;
+      }
+      if (at < len / 2) kids.push(Pn([(at + len / 2) / 2, 0, 0], [len / 2 - at, h], wallC));
+      /* A dark cap along the top is what the map shows as the wall. */
+      kids.push({ type: 'box', pos: [0, h, -0.06], size: [len + 0.24, 0.05, 0.12], color: '#6e6a63', shadow: false });
+      out.push({ type: 'group', pos: [sx * w / 2, 0, sz * d / 2], rot: yaw, children: kids });
+    }
+    return out; };
+
+  /* ----- furniture: fronts face +z ----- */
+  const flat = (o, w, h) => { const s = Array.isArray(o.size) ? o.size : []; return [N(s[0], w), N(s[1], h)]; };
+  const couch = (o, w0) => { const s = dims(o, w0, 0.85, 0.9), w = s[0], h = s[1], d = s[2], c = o.color || '#7c8690', a = Math.min(0.2, w * 0.14);
+    return [B([0, 0, 0], [w, 0.26, d], c), B([0, 0.26, 0.06], [w - 2 * a, 0.17, d - 0.24], o.color2 || c), B([0, 0.26, -d / 2 + 0.11], [w - 2 * a, h - 0.26, 0.22], c),
+      B([w / 2 - a / 2, 0.26, 0], [a, 0.34, d], c), B([-w / 2 + a / 2, 0.26, 0], [a, 0.34, d], c)]; };
+  pr.sofa = (o) => couch(o, 2);
+  pr.armchair = (o) => couch(o, 0.9);
+  pr.bed = (o) => { const s = dims(o, 1.6, 0.55, 2), w = s[0], h = Math.max(0.35, s[1]), d = s[2], c = o.color || '#8a6f55', two = w > 1.2, pw = two ? w / 2 - 0.14 : w - 0.3;
+    return [B([0, 0, 0], [w, 0.3, d], c), B([0, 0.3, 0.03], [w - 0.06, h - 0.3, d - 0.1], o.color2 || '#e8e4dc'), B([0, 0, -d / 2 + 0.03], [w, h + 0.45, 0.06], c)]
+      .concat((two ? [-w / 4, w / 4] : [0]).map((x) => B([x, h, -d / 2 + 0.34], [pw, 0.1, 0.4], '#f5f3ee'))); };
+  pr.desk = (o) => { const s = dims(o, 1.4, 0.75, 0.7), w = s[0], h = s[1], d = s[2], c = o.color || '#a58a68';
+    return [B([0, h - 0.04, 0], [w, 0.04, d], c), B([-w / 2 + 0.03, 0, 0], [0.04, h - 0.04, d * 0.9], c), B([w / 2 - 0.21, 0.1, 0], [0.4, h - 0.14, d * 0.9], c),
+      B([w / 2 - 0.21, h * 0.5, d * 0.45], [0.34, 0.012, 0.012], '#5d5348'), B([0, h * 0.42, -d / 2 + 0.06], [w - 0.1, h * 0.5, 0.02], c)]; };
+  pr.cabinet = (o) => { const s = dims(o, 1, 0.9, 0.45), w = s[0], h = s[1], d = s[2], c = o.color || '#b9a78c', n = Math.max(1, Math.min(8, Math.round(w / 0.55)));
+    const out = [B([0, 0, 0], [w, h - 0.03, d], c), B([0, h - 0.03, 0], [w + 0.03, 0.03, d + 0.03], o.color2 || c)];
+    for (let i = 1; i < n; i++) out.push(B([-w / 2 + i * w / n, 0.05, d / 2], [0.012, h - 0.13, 0.012], '#5d5348'));
+    return out; };
+  const BOOKS = ['#7d4f45', '#4f6b7d', '#c9b48a', '#5d7a5a', '#8a7aa0', '#b5653f'];
+  pr.shelf = (o) => { const s = dims(o, 0.9, 1.8, 0.3), w = s[0], h = s[1], d = s[2], c = o.color || '#9c8263', n = Math.max(2, Math.min(9, Math.round(h / 0.36))), gap = (h - 0.03) / n;
+    const out = [B([-w / 2 + 0.015, 0, 0], [0.03, h, d], c), B([w / 2 - 0.015, 0, 0], [0.03, h, d], c), B([0, 0, -d / 2 + 0.008], [w, h, 0.016], c)];
+    for (let i = 0; i <= n; i++) {
+      out.push(B([0, i * gap, 0], [w - 0.06, 0.03, d - 0.02], c));
+      if (i < n && o.fill !== false) { const f = 0.45 + ((i * 37) % 40) / 100;
+        out.push(B([(i % 2 ? 1 : -1) * (w - 0.08) * (1 - f) / 2, i * gap + 0.03, 0.02], [(w - 0.08) * f, gap * 0.66, d * 0.6], BOOKS[i % BOOKS.length])); }
+    }
+    return out; };
+  pr.fridge = (o) => { const s = dims(o, 0.7, 1.75, 0.7), w = s[0], h = s[1], d = s[2], g = '#9aa0a4';
+    return [B([0, 0, 0], s, o.color || '#dde0e2'), B([0, h * 0.62, d / 2], [w, 0.014, 0.014], g), B([w * 0.36, h * 0.66, d / 2 + 0.02], [0.03, h * 0.2, 0.03], g), B([w * 0.36, h * 0.36, d / 2 + 0.02], [0.03, h * 0.2, 0.03], g)]; };
+  pr.stool = (o) => { const h = one(o, 0.45), c = o.color || '#8c6f50';
+    return [C([0, h - 0.04, 0], [0.34, 0.04], c)].concat([[0.1, 0.1], [-0.1, 0.1], [0.1, -0.1], [-0.1, -0.1]].map((p) => B([p[0], 0, p[1]], [0.03, h - 0.04, 0.03], c))); };
+  pr.plant = (o) => { const h = one(o, 1.1), c = o.color || '#4f8a55';
+    return [C([0, 0, 0], [h * 0.26, h * 0.24], o.color2 || '#b0694c'), I([0, h * 0.2, 0], [h * 0.6, h * 0.62, h * 0.6], c, [0, 25, 0]), I([h * 0.06, h * 0.46, 0.02], [h * 0.44, h * 0.54, h * 0.44], c, [0, 80, 0])]; };
+  pr.floorlamp = (o) => { const h = one(o, 1.6), m = '#3c3f43';
+    return [C([0, 0, 0], [0.28, 0.03], m), C([0, 0, 0], [0.03, h * 0.82], m), C([0, h * 0.78, 0], [h * 0.22, h * 0.22], o.color || '#f1e5c3')]; };
+  /* Flat things that hang on a wall or stand on a sideboard: "pos" y is their bottom edge. */
+  pr.tv = (o) => { const s = flat(o, 1.2, 0.7), f = o.stand === false ? 0 : 0.07, k = '#1e2023';
+    return [B([0, f, 0], [s[0], s[1], 0.04], k), B([0, f + 0.02, 0.012], [s[0] - 0.04, s[1] - 0.04, 0.022], o.color || '#33404c')]
+      .concat(f ? [B([0, 0, 0], [s[0] * 0.3, 0.015, 0.2], k), B([0, 0, 0], [0.06, f, 0.04], k)] : []); };
+  pr.picture = (o) => { const s = flat(o, 0.8, 0.6);
+    return [B([0, 0, 0], [s[0], s[1], 0.03], o.color2 || '#3b3632'), B([0, 0.03, 0.011], [s[0] - 0.06, s[1] - 0.06, 0.012], o.color || '#c8b698')]; };
+  pr.curtain = (o) => { const s = flat(o, 1.4, 2.3), n = Math.max(3, Math.min(24, Math.round(s[0] / 0.16))), out = [];
+    for (let i = 0; i < n; i++) out.push(B([-s[0] / 2 + (i + 0.5) * s[0] / n, 0, i % 2 ? 0.035 : 0], [s[0] / n + 0.004, s[1], 0.05], o.color || '#c9c3b6'));
+    return out; };
+  pr.rug = (o) => { const s = dims(o, 2, 0, 1.4), part = (w, d, y, c) => ({ type: 'box', pos: [0, y, 0], size: [w, 0.012, d], color: c, shadow: false });
+    return [part(s[0], s[2], 0.021, o.color || '#a45a4b')].concat(o.color2 ? [part(s[0] - 0.3, s[2] - 0.3, 0.023, o.color2)] : []); };
+  pr.laptop = (o) => { const c = o.color || '#b8bbbf';
+    return [B([0, 0, 0.02], [0.32, 0.018, 0.22], c), B([0, 0.018, -0.09], [0.32, 0.21, 0.012], c, [-16, 0, 0]), B([0, 0.03, -0.086], [0.29, 0.18, 0.006], '#2f3a45', [-16, 0, 0])]; };
+  pr.bottle = (o) => { const h = one(o, 0.25), c = o.color || '#3f7d6b';
+    return [C([0, 0, 0], [h * 0.3, h * 0.62], c), C([0, h * 0.62, 0], [h * 0.13, h * 0.3], c), C([0, h * 0.92, 0], [h * 0.16, h * 0.08], o.color2 || '#e8e4da')]; };
+  pr.cup = (o) => { const h = one(o, 0.1); return [C([0, 0, 0], [h * 0.85, h], o.color || '#e9e6df')]; };
+
+  /* Other words a scene may use for the same things. */
+  const ALIAS = { couch: 'sofa', bookshelf: 'shelf', bookcase: 'shelf', shelves: 'shelf', wardrobe: 'cabinet', closet: 'cabinet', dresser: 'cabinet', sideboard: 'cabinet', counter: 'cabinet', nightstand: 'cabinet',
+    television: 'tv', monitor: 'tv', screen: 'tv', painting: 'picture', poster: 'picture', mirror: 'picture', frame: 'picture', whiteboard: 'picture', carpet: 'rug', mat: 'rug',
+    curtains: 'curtain', mug: 'cup', glass: 'cup', refrigerator: 'fridge', pottedplant: 'plant', floor_lamp: 'floorlamp' };
+  P.find = (type) => pr[type] || pr[ALIAS[type]];
 
   /* ----- repetition helpers ----- */
   P.row = (o) => { const s = span(o), n = Math.max(1, Math.min(200, Math.round(N(o.count, 5)))), out = [];
@@ -905,11 +1049,14 @@ window.PV = window.PV || {};
   G.akimbo = (p) => set(p, { aAbL: 0.75, aAbR: 0.75, elL: 1.75, elR: 1.75, aTwL: 0.95, aTwR: 0.95 });
   G.arms_crossed = (p) => set(p, { aSwL: 0.55, aSwR: 0.5, elL: 1.95, elR: 1.9, aTwL: 1.25, aTwR: 1.2 });
   G.shield = (p) => set(p, { aSwL: 1.9, aSwR: 1.9, elL: 1.6, elR: 1.6, aTwL: 0.5, aTwR: 0.5, nod: 0.35, spine: 0.2 });
+  /* Both hands busy just above a table top, head down: typing, writing, eating. */
+  G.work = (p, t) => set(p, { aSwL: 0.6, aSwR: 0.6, elL: 1 + 0.05 * sin(t * 6.3), elR: 1 + 0.05 * sin(t * 5.1 + 1), aAbL: 0.1, aAbR: 0.1, aTwL: 0.3, aTwR: 0.3, nod: 0.32, spine: 0.16 });
 
   /* The words a scene may use, mapped onto the actions above. */
   const ALIAS = { stand: 'idle', wait: 'idle', stop: 'idle', jog: 'run', sprint: 'run', dash: 'run', stroll: 'walk', creep: 'sneak', squat: 'crouch', duck: 'crouch',
     sleep: 'lie', dead: 'fall', die: 'fall', collapse: 'fall', fight: 'punch', box: 'punch', seated: 'sit', hello: 'wave', greet: 'wave', call: 'phone',
-    celebrate: 'cheer', surrender: 'hands_up', shoot: 'aim', gun: 'aim', hold: 'carry', speak: 'talk', argue: 'talk', hop: 'jump', leap: 'jump' };
+    celebrate: 'cheer', surrender: 'hands_up', shoot: 'aim', gun: 'aim', hold: 'carry', speak: 'talk', argue: 'talk', hop: 'jump', leap: 'jump',
+    type: 'work', typing: 'work', write: 'work', writing: 'work', read: 'work', draw: 'work', eat: 'work', cook: 'work' };
   A.baseNames = Object.keys(B); A.gestureNames = Object.keys(G);
   A.parse = (text) => {
     const out = { base: null, gesture: null };
@@ -1053,12 +1200,24 @@ window.PV = window.PV || {};
     M.duration = PV.clamp(N(scene.duration, 10), 2, 60);
     const n = Math.ceil(M.duration / DT) + 2;
     M.actors = []; M.movers = []; M.byId = {};
-    W.clear(); W.setEnv(scene.env);
+    W.clear();
 
     const objects = (Array.isArray(scene.objects) ? scene.objects : []).filter((o) => o && typeof o === 'object');
     const actors = (Array.isArray(scene.actors) ? scene.actors : []).filter((o) => o && typeof o === 'object');
     const ridden = new Set(actors.map((a) => a.in).filter(Boolean).map(String));
-    const isMover = (o) => Array.isArray(o.track) || (o.id && ridden.has(String(o.id)));
+    /* The object named in "focus" is built on its own even when it never moves, so the camera has something to aim at
+       in a scene with nobody in it. */
+    const focusId = scene.focus === undefined || scene.focus === null ? '' : String(scene.focus);
+    const isMover = (o) => Array.isArray(o.track) || (!!o.id && (ridden.has(String(o.id)) || String(o.id) === focusId));
+
+    /* Rooms: where they are (for the map) and whether this scene happens indoors (everything gets closer and slower). */
+    M.rooms = objects.filter((o) => String(o.type || '').toLowerCase() === 'room').map((o) => {
+      const p = PV.vec3(o.pos), s = Array.isArray(o.size) ? o.size : [], w = N(s[0], 4), d = N(s[2], 4), yaw = PV.deg(N(Array.isArray(o.rot) ? o.rot[1] : o.rot, 0));
+      const hx = (Math.abs(Math.cos(yaw)) * w + Math.abs(Math.sin(yaw)) * d) / 2, hz = (Math.abs(Math.sin(yaw)) * w + Math.abs(Math.cos(yaw)) * d) / 2;
+      return { x0: p[0] - hx, x1: p[0] + hx, z0: p[2] - hz, z1: p[2] + hz };
+    });
+    M.indoor = M.rooms.length > 0;
+    W.setEnv(scene.env, M.indoor);
 
     /* Routes first, so scattered scenery can stay off them. */
     const avoid = PV.props.avoid = [];
@@ -1075,6 +1234,9 @@ window.PV = window.PV || {};
       const e = bakeEntity(o, moverKeys[i], n);
       const local = Object.assign({}, o, { pos: [0, 0, 0], rot: 0, track: undefined });
       e.group = W.group(W.expand(local)); e.kind = 'mover'; e.label = o.name || o.id || o.type;
+      /* Where the camera aims on it and how tall it is to frame: fixed for vehicles, measured for anything else. */
+      const tall = new T.Box3().setFromObject(e.group).max.y, car = e.group.userData.wheels.length > 0;
+      e.aim = car || !(tall > 0) ? 0.9 : PV.clamp(tall * 0.55, 0.05, 1.6); e.tall = car || !(tall > 0) ? 2.6 : PV.clamp(tall * 1.5 + 0.4, 0.8, 8);
       W.content.add(e.group); M.movers.push(e); if (e.id) M.byId[e.id] = e;
     });
     for (const e of M.movers) bakeHeading(e, 4.5, Array.isArray(e.spec.rot) ? e.spec.rot[1] : e.spec.rot);
@@ -1094,8 +1256,10 @@ window.PV = window.PV || {};
     for (const e of M.actors) if (!e.attached) bakeHeading(e, 9, e.spec.heading);
     for (const e of M.actors) bakeActing(e);
 
-    M.subjects = M.actors.concat(M.movers.filter((m) => m.keys.length > 1 || !M.actors.length));
-    M.focus = M.byId[String(scene.focus)] || M.subjects[0] || null;
+    M.subjects = M.actors.concat(M.movers.filter((m) => m.keys.length > 1 || !M.actors.length || m.id === focusId));
+    M.focus = M.byId[focusId] || M.subjects[0] || null;
+    const b = M.bounds();
+    W.shadowSpan(M.indoor ? PV.clamp(Math.max(b.x1 - b.x0, b.z1 - b.z0) * 2 + 14, 16, 84) : 84);
   };
 
   /* ---------- reading the timeline ---------- */
@@ -1159,7 +1323,7 @@ window.PV = window.PV || {};
     if (e.attached) {
       const h = host.h[i] + PV.angDiff(host.h[i], host.h[i + 1]) * a, c = Math.cos(h), s = Math.sin(h);
       out.x += e.seat.x * c + e.seat.z * s; out.z += -e.seat.x * s + e.seat.z * c; out.y += e.seat.y + 0.3 * e.rig.s;
-    } else out.y += e.rig ? 1.0 * e.rig.s : 0.9;
+    } else out.y += e.rig ? 1.0 * e.rig.s : (e.aim || 0.9);
     return out;
   };
   M.headingOf = (e, t) => { if (!e) return 0; const host = e.attached || e, { i, a } = sample(host, t); return host.h[i] + PV.angDiff(host.h[i], host.h[i + 1]) * a; };
@@ -1171,6 +1335,7 @@ window.PV = window.PV || {};
     const walkers = M.actors.filter((e) => !e.attached);
     for (const e of (walkers.length ? walkers : M.movers)) {
       for (let i = 0; i < e.n; i += 6) { b.x0 = Math.min(b.x0, e.x[i]); b.x1 = Math.max(b.x1, e.x[i]); b.z0 = Math.min(b.z0, e.z[i]); b.z1 = Math.max(b.z1, e.z[i]); } }
+    for (const r of M.rooms || []) { b.x0 = Math.min(b.x0, r.x0); b.x1 = Math.max(b.x1, r.x1); b.z0 = Math.min(b.z0, r.z0); b.z1 = Math.max(b.z1, r.z1); }
     if (!Number.isFinite(b.x0)) { b.x0 = b.z0 = -10; b.x1 = b.z1 = 10; }
     return b;
   };
@@ -1215,7 +1380,8 @@ window.PV = window.PV || {};
   /* ---------- free camera: you operate it ---------- */
   C.input = { x: 0, y: 0, z: 0, dx: 0, dy: 0, zoom: 0, fast: false };
   function free(dt, t) {
-    const I = C.input, speed = (I.fast ? 13 : 4) * (1 + Math.min(C.pos.y, 40) * 0.06);
+    /* Walking pace outdoors; indoors a step, or the first key press would put the camera through the far wall. */
+    const I = C.input, speed = (I.fast ? 13 : 4) * (1 + Math.min(C.pos.y, 40) * 0.06) * (M.indoor ? 0.4 : 1);
     const fx = -Math.sin(C.yaw), fz = -Math.cos(C.yaw);
     v1.set((fx * I.z + -fz * I.x) * speed, I.y * speed * 0.7, (fz * I.z + fx * I.x) * speed);
     C.vel.lerp(v1, 1 - Math.exp(-dt * 7));
@@ -1334,8 +1500,8 @@ window.PV = window.PV || {};
   C.frame = (t) => {
     if (!C.subject) return;
     const S = M.where(C.subject, t, new T.Vector3()), h0 = M.headingOf(C.subject, t);
-    const tall = C.subject.rig ? 2.1 * C.subject.rig.s : 2.6, half = PV.deg(C.fovFor(C.focal)) / 2;
-    const d = PV.clamp(tall / (2 * Math.tan(half)) * (C.aspect < 1 ? 1.4 : 1.6), 2.2, 60);
+    const tall = C.subject.rig ? 2.1 * C.subject.rig.s : (C.subject.tall || 2.6), half = PV.deg(C.fovFor(C.focal)) / 2;
+    const d = PV.clamp(tall / (2 * Math.tan(half)) * (C.aspect < 1 ? 1.4 : 1.6), M.indoor ? 1.2 : 2.2, 60);
     /* Try a few angles around the subject and take the first with nothing standing in the way. */
     const own = C.subject.attached ? C.subject.attached.group : (C.subject.rig ? C.subject.rig.root : C.subject.group);
     const mine = (o) => { for (let n = o; n; n = n.parent) if (n === own) return true; return false; };
@@ -1404,7 +1570,9 @@ window.PV = window.PV || {};
     const b = M.bounds();
     if (includeCamera && C.cam) { b.x0 = Math.min(b.x0, C.cam.position.x); b.x1 = Math.max(b.x1, C.cam.position.x); b.z0 = Math.min(b.z0, C.cam.position.z); b.z1 = Math.max(b.z1, C.cam.position.z); }
     Mp.cx = (b.x0 + b.x1) / 2; Mp.cz = (b.z0 + b.z1) / 2;
-    const w = Math.max(14, (b.x1 - b.x0) * 1.5 + 10), h = Math.max(14, (b.z1 - b.z0) * 1.5 + 10);
+    /* A room is a few metres across: indoors the map closes in, so there is space to draw a rail between the furniture. */
+    const air = M.indoor ? 3 : 10, least = M.indoor ? 6 : 14;
+    const w = Math.max(least, (b.x1 - b.x0) * 1.5 + air), h = Math.max(least, (b.z1 - b.z0) * 1.5 + air);
     Mp.scale = Math.min(rect.w / w, rect.h / h);
   };
   Mp.toScreen = (x, z, r) => [r.x + r.w / 2 + (x - Mp.cx) * Mp.scale, r.y + r.h / 2 + (z - Mp.cz) * Mp.scale];
@@ -1606,32 +1774,38 @@ window.PV = window.PV || {};
   S.GUIDE = [
     'You are the scene builder of "Previs Studio", a browser tool that blocks out film shots in simple low-poly 3D (like a Blender greybox) so a director can plan camera moves. Reply with ONE JSON object describing the scene and nothing else.',
     '',
-    'WORLD. Metres and seconds. Flat open ground at y=0. +x is east (right on the map), +z is south, y is up. A position is [x,z] on the ground or [x,y,z]. "pos" is where the thing STANDS (bottom centre). "rot" is yaw in degrees: 0 faces +z, 90 faces +x.',
+    'WORLD. Metres and seconds. Flat open ground at y=0. +x is east (right on the map), +z is south, y is up. A position is [x,z] on the ground or [x,y,z]; given a y, the thing floats with its underside at that height (a cup on a table, a lamp hanging under a ceiling). "pos" is where the thing STANDS (bottom centre). "rot" is yaw in degrees: 0 faces +z, 90 faces +x. Whatever has a front (chair, sofa, house, vehicle, tv) faces +z at "rot":0.',
     '',
-    'SCENE = {"name": short title, "duration": 5 to 20, "env": ENV, "objects": [...], "actors": [...], "focus": id of the main actor, "camera": {"pos":[x,y,z],"look":[x,y,z],"lens":35}}',
-    'ENV = {"ground":"#hex","sky":["#top","#horizon"],"sun":[azimuthDeg,elevationDeg],"fog":0..1,"night":false}',
+    'SCENE = {"name": short title, "duration": 5 to 20, "env": ENV, "objects": [...], "actors": [...], "focus": id of the main actor (with nobody in the scene, give the main object an "id" and name it here), "camera": {"pos":[x,y,z],"look":[x,y,z],"lens":35}}',
+    'The lens is a full-frame focal length measured along the LONG side of the frame: 16 mm sees 97 degrees along it, 24 mm 74, 35 mm 54, 50 mm 40, 85 mm 24.',
+    'ENV = {"ground":"#hex","sky":["#top","#horizon"],"sun":[azimuthDeg,elevationDeg],"fog":0..1,"night":false}. Azimuth 0 puts the sun in the south (+z), 90 in the east. The sun is the only light: lamps are objects and light nothing. "night":true darkens an outdoor scene; a room at night stays lit, and only the view through its windows goes dark.',
     '',
     'OBJECTS, each {"type", "pos", "rot", "color", ...}:',
-    '- shapes: box {"size":[w,h,d]}, cylinder {"size":[diameter,height]}, cone {"size":[diameter,height]}, sphere {"size":diameter}, wedge {"size":[w,h,d]} (a ramp, tall side at -z)',
+    '- shapes: box {"size":[w,h,d]}, cylinder {"size":[diameter,height]}, cone {"size":[diameter,height]}, sphere {"size":diameter}, wedge {"size":[w,h,d]} (a ramp, tall side at -z). A shape may take "rot":[pitch,yaw,roll] to lie down or lean',
     '- nature: tree, pine, palm, bush, rock {"size":height}; mountain {"size":[w,h,d]}; water {"size":[w,0,d]}',
-    '- town: building {"size":[w,h,d],"color","color2":windows}, house {"size":[w,h,d],"color","color2":roof}, tower, arch, tent, stairs {"size":[w,h,d]}, lamp, sign, bench, table, chair, crate, barrel',
+    '- town: building {"size":[w,h,d],"color","color2":windows}, house {"size":[w,h,d],"color","color2":roof}, tower, arch, tent, stairs {"size":[w,h,d]}, lamp (a 6 m street lamp), sign, bench, table {"size":[w,h,d]} (1.6 x 0.75 x 0.9 unless sized), chair (seat 0.47 high, back up to 0.95), crate, barrel',
+    '- indoors: room {"pos":[x,z] centre of its floor,"size":[w,h,d],"color":walls,"floor":"#hex","ceiling":"#hex" or false,"walls":["north","east","south","west"],"doors":[{"wall":"south","at":1.2,"width":0.9,"height":2.1,"open":false,"leaf":true}],"windows":[{"wall":"east","at":-0.5,"width":1.4,"height":1.2,"sill":0.9}]}. The north wall is the one at -z, south at +z, west at -x, east at +x. "at" is where the centre of the opening sits along its wall, in metres from the middle of that wall: + is toward east on the north and south walls, toward south on the west and east walls. A door with "open":true has its leaf swung in; "leaf":false is a bare opening of any width, such as the passage into the next room. Windows are framed openings with no glass, and a window with two leaves is one window. Leave a side out of "walls" where the space is open. Walls and ceiling are drawn from the inside only, so the camera may stand outside and look in. Rooms may adjoin: build each one whole, touching, with the same door or opening in the wall they share. Left out, "doors" and "windows" mean none, "walls" all four, and the ceiling is white.',
+    '- furniture, with the size each has unless given one: sofa [2,0.85,0.9], armchair [0.9,0.85,0.85], bed [1.6,0.55,2] (head at -z), desk [1.4,0.75,0.7], cabinet [1,0.9,0.45] (any closed piece: sideboard, wardrobe, kitchen counter), shelf [0.9,1.8,0.3], fridge [0.7,1.75,0.7], all {"size":[w,h,d]}; stool 0.45, plant 1.1, floorlamp 1.6, bottle 0.25, cup 0.1, all {"size":height}; tv [1.2,0.7], picture [0.8,0.6], curtain [1.4,2.3], all {"size":[w,h]}: these are flat, sit on the wall plane itself with "pos" y as their bottom edge, and face into the room ("rot" 0 on the north wall, 180 on the south, 90 on the west, -90 on the east); a curtain hangs in front of its window or, pulled aside, right beside it; rug {"size":[w,0,d]}; laptop. Whatever stands ON a table takes the table height as y: "pos":[x,0.75,z].',
     '- laid between two points {"from":[x,z],"to":[x,z]}: road {"width"}, path {"width"}, river {"width"}, wall {"height","thickness"}, fence {"height"}',
     '- vehicles (they face +z): car {"style":"sedan|suv|sports|pickup|van|bus|truck","color"}, motorcycle, bicycle',
     '- group {"children":[objects in local space]}; any object accepts "scale"',
     '- row {"of":OBJECT,"from":[x,z],"to":[x,z],"count":n} and scatter {"of":OBJECT,"count":n,"area":[x1,z1,x2,z2],"seed":n,"scale":[min,max]} (scatter keeps clear of every route by itself)',
-    '- to make an object MOVE give it "id" and "track":[{"t":seconds,"pos":[x,z]},...]. It turns to face where it is going.',
+    '- to make an object MOVE give it "id" and "track":[{"t":seconds,"pos":[x,z]},...]. It turns to face where it is going. A track "pos" may be [x,y,z], which lifts the thing: a bottle rises from the table to the mouth while the actor does "drink".',
     '',
     'ACTORS, each {"id","name","height":1.75,"build":1,"colors":{"skin","top","bottom","shoes","hair"},"hair":"short|long|bun|ponytail|bald","outfit":"pants|shorts|skirt|dress","sleeves":"long|short|none","props":[...],"keys":[...]}',
     '- "keys":[{"t":seconds,"pos":[x,z],"do":"...","face":degrees or [x,z] or "id","look":"id" or [x,y,z] or "camera"}]. Between two keys the actor goes in a straight line from one pos to the next; walking or running is picked from the speed (walk about 1.4 m/s, jog 3, sprint 6 to 8). "do" is what the actor does from that key until the next.',
+    '- "face" and "look" hold from their key until the next one, so repeat them to keep them. "look" takes an actor id, a point or "camera".',
     '- full body: idle, walk, run, sneak, crouch, kneel, sit, sit_ground, lie, fall, jump, dance, punch, kick, push, climb, swim, fly',
-    '- gestures, added to any of those ("walk phone", "sit talk"): wave, point, talk, phone, think, cheer, clap, hands_up, aim, carry, drink, akimbo, arms_crossed, shield',
+    '- gestures, added to any of those ("walk phone", "sit talk"): wave, point, talk, phone (right hand at the ear), think, cheer, clap, hands_up, aim, carry, drink (right hand to the mouth), akimbo, arms_crossed, shield, work (both hands busy on a table: typing, writing, eating)',
+    '- to seat someone: the actor takes the same "pos" as the chair or stool (on a sofa or bed, a point on the seat), "do":"sit", and "face" the way the seat faces. The hips find the seat height by themselves. A chair at a table stands with the front of its seat under the table edge.',
     '- "props":[{"on":"handR|handL|head|back|chest|hips", then any OBJECT, positioned relative to that body part}] for a hat, sword, backpack, box',
     '- riding: {"in":"vehicleId","seat":[x,y,z],"do":"drive"}. The seat is in the vehicle\'s own space and y is hip height: car driver [0.4,0.5,0.1], passenger [-0.4,0.5,0.1], motorcycle [0,0.8,-0.25] with "do":"ride".',
     '',
-    'RULES. Build what the description says at real-world scale. Dress the set enough to read the place: 15 to 60 objects, with scatter and row for anything repeated. Keep the action within about 60 m of the origin and leave it room: an open map, never a closed box. Give every object and character its own plausible colour so each can be told apart. Time every beat: someone moves within the first second, and the last key lands on the final second. Place the starting camera where it sees the main character full figure.',
+    'RULES. Build what the description says at real-world scale. Dress the set enough to read the place: 15 to 60 objects, with scatter and row for anything repeated. Outdoors keep the action within about 60 m of the origin and leave it room: an open map, never a closed box. Indoors use room (never walls made of boxes), the main one centred on the origin, with every piece of furniture inside it at real size. Give every object and character its own plausible colour so each can be told apart. Time every beat: someone moves within the first second, and the last key lands on the final second. Place the starting camera where it sees the main character full figure (indoors, from inside the room).',
     '',
-    'EXAMPLE',
-    '{"name":"Beach run","duration":8,"env":{"ground":"#d9c9a3","sky":["#4f8fd0","#eadcc0"],"sun":[220,35],"fog":0.3},"objects":[{"type":"water","pos":[0,-70],"size":[400,0,90],"color":"#4f93b5"},{"type":"scatter","of":{"type":"palm"},"count":14,"area":[-60,8,60,30],"seed":3},{"type":"row","of":{"type":"rock","size":0.8},"from":[-30,-20],"to":[30,-22],"count":7},{"type":"tent","pos":[12,10],"rot":20,"color":"#d07a4a"}],"actors":[{"id":"runner","name":"Runner","colors":{"skin":"#b98463","top":"#e8e2d2","bottom":"#2f4a63","shoes":"#f0f0f0","hair":"#2a1d16"},"outfit":"shorts","sleeves":"short","keys":[{"t":0,"pos":[-18,-4]},{"t":6,"pos":[10,-6]},{"t":7,"pos":[12,-6],"do":"wave","face":[12,10]},{"t":8,"pos":[12,-6],"do":"wave"}]}],"focus":"runner","camera":{"pos":[-10,1.5,4],"look":[-16,1.1,-4],"lens":35}}'
+    'EXAMPLES',
+    '{"name":"Beach run","duration":8,"env":{"ground":"#d9c9a3","sky":["#4f8fd0","#eadcc0"],"sun":[220,35],"fog":0.3},"objects":[{"type":"water","pos":[0,-70],"size":[400,0,90],"color":"#4f93b5"},{"type":"scatter","of":{"type":"palm"},"count":14,"area":[-60,8,60,30],"seed":3},{"type":"row","of":{"type":"rock","size":0.8},"from":[-30,-20],"to":[30,-22],"count":7},{"type":"tent","pos":[12,10],"rot":20,"color":"#d07a4a"}],"actors":[{"id":"runner","name":"Runner","colors":{"skin":"#b98463","top":"#e8e2d2","bottom":"#2f4a63","shoes":"#f0f0f0","hair":"#2a1d16"},"outfit":"shorts","sleeves":"short","keys":[{"t":0,"pos":[-18,-4]},{"t":6,"pos":[10,-6]},{"t":7,"pos":[12,-6],"do":"wave","face":[12,10]},{"t":8,"pos":[12,-6],"do":"wave"}]}],"focus":"runner","camera":{"pos":[-10,1.5,4],"look":[-16,1.1,-4],"lens":35}}',
+    '{"name":"Evening in","duration":8,"env":{"ground":"#8f9388","sky":["#6f93bd","#e3d9cf"],"sun":[300,30],"fog":0.2},"objects":[{"type":"room","pos":[0,0],"size":[4.6,2.6,3.8],"color":"#e6e0d4","floor":"#a98c68","doors":[{"wall":"south","at":1.5}],"windows":[{"wall":"north","at":-0.6,"width":1.6}]},{"type":"sofa","pos":[-1.82,0.1],"rot":90,"color":"#6d7f8c"},{"type":"rug","pos":[-0.8,0.1],"size":[2.2,0,1.6],"color":"#b0624f"},{"type":"table","pos":[-0.7,0.1],"size":[0.6,0.42,1.1]},{"type":"cup","pos":[-0.7,0.42,0.3]},{"type":"cabinet","pos":[2.05,0.1],"rot":-90,"size":[1.6,0.5,0.45]},{"type":"tv","pos":[2.05,0.5,0.1],"rot":-90,"size":[1.1,0.62]},{"type":"shelf","pos":[1.4,-1.74]},{"type":"plant","pos":[-1.95,-1.5]},{"type":"floorlamp","pos":[-1.95,1.5]}],"actors":[{"id":"ana","name":"Ana","colors":{"skin":"#c4936e","top":"#c9584a","bottom":"#3b4654","shoes":"#e8e4dc","hair":"#2b1f1a"},"hair":"long","keys":[{"t":0,"pos":[-1.7,0.1],"do":"sit phone","face":90},{"t":5,"pos":[-1.7,0.1],"do":"sit drink"},{"t":8,"pos":[-1.7,0.1],"do":"sit"}]}],"focus":"ana","camera":{"pos":[1.5,1.35,1.5],"look":[-1.5,0.8,0],"lens":24}}'
   ].join('\n');
 
   /* Whatever arrives (from Claude, a paste, or storage) becomes something the engine can always build. */
@@ -1647,10 +1821,30 @@ window.PV = window.PV || {};
       actors: Array.isArray(raw.actors) ? raw.actors.slice(0, 24) : [],
       focus: raw.focus, camera: raw.camera && typeof raw.camera === 'object' ? raw.camera : null
     };
+    if (typeof raw.seen === 'string' && raw.seen.trim()) s.seen = raw.seen.trim().slice(0, 600);
     if (!s.objects.length && !s.actors.length) return null;
     s.actors.forEach((a, i) => { if (a && typeof a === 'object' && !a.id) a.id = 'actor' + (i + 1); });
     return s;
   };
+
+  /* A pasted answer is rarely the bare JSON: it comes wrapped in a code fence, or with a sentence before and after.
+     This finds the first complete {...} in the text that is a scene. */
+  S.extract = (text) => {
+    text = String(text || '');
+    for (let from = text.indexOf('{'); from >= 0; from = text.indexOf('{', from + 1)) {
+      let depth = 0, quoted = false, escaped = false;
+      for (let i = from; i < text.length; i++) {
+        const ch = text[i];
+        if (quoted) { if (escaped) escaped = false; else if (ch === '\\') escaped = true; else if (ch === '"') quoted = false; continue; }
+        if (ch === '"') quoted = true;
+        else if (ch === '{') depth++;
+        else if (ch === '}' && --depth === 0) { const scene = S.clean(text.slice(from, i + 1)); if (scene) return scene; break; }
+      }
+    }
+    return null;
+  };
+  /* Does this text try to be a scene (so a broken one is reported, not sent off as a description)? */
+  S.looksLikeScene = (text) => /^\s*(```|\{)/.test(text) || /"(objects|actors)"\s*:/.test(text);
 
   S.remember = (scene, baseId) => PV.store.set('scene', { base: baseId, scene });
   S.recall = (baseId) => { const r = PV.store.get('scene'); return r && r.base === baseId ? S.clean(r.scene) : null; };
@@ -1662,11 +1856,29 @@ window.PV = window.PV || {};
     return prompt + 'REQUEST (write "name" in the same language as this request):\n' + request + '\n\nReply with only the complete scene JSON.';
   };
 
-  /* Ask Claude for a scene. With a scene already open, the request may be a change to it or a whole new one. */
-  S.generate = async (request, current, onText, signal) => {
+  /* The same, from photos of a real place. Only the words travel in this text: the photos go next to it, sent by the
+     page where it can talk to Claude, attached by hand where it cannot. "current" is the scene built from these same
+     photos, when the note asks to correct it. */
+  S.photoPrompt = (note, count, ratio, current) => {
+    const tongue = PV.lang === 'pt' ? 'Brazilian Portuguese' : 'English';
+    let prompt = S.GUIDE + '\n\nPHOTOS. ' + (count > 1 ? count + ' photos are attached: stills from a video, or pictures of the location.' : 'One photo is attached: a still from a video, or a picture of the location.') + ' Rebuild that real place as the scene, so a camera move planned here can be matched to the real footage. Ignore captions, watermarks or app interface drawn over a picture.\n'
+      + '- Read the place first: indoors or outdoors, the shape and real size of the space, each wall with its doors and windows, the floor, where the light comes from, and every piece of furniture, object and person worth keeping, with the colour it would have in daylight. Judge sizes from things of known size (a door is about 2.1 m tall and 0.8 m wide, a chair seat 0.45 m high, a table 0.75 m, a kitchen counter 0.9 m, an adult 1.7 m, a ceiling 2.6 m) and use any measurement the note gives. Where photos disagree because things were moved between them, the first photo wins.\n'
+      + '- Lay it out to scale: each wall, opening and object where the photos show it, at its real size and in its real colour, walls and floor included. Keep the things a camera would notice, down to what sits on a table; skip clutter. Build what the photos show or plainly imply and invent nothing for the parts they do not show: unseen walls stay plain, and with no other clue the room ends about 1.5 m behind the camera and 1 m beyond what the picture shows on either side. A window is built at its full width even where a curtain covers part of it.\n'
+      + '- People in the photos become actors, placed and dressed as they are, sitting or standing as they are. Unless the note says what they do, they stay where they are and act small (idle, sit, talk, think, phone) for 8 to 10 seconds.\n'
+      + '- ' + (count > 1 ? 'The first photo' : 'The photo') + ' is the shot the camera starts from. Set "camera" where it was taken: same spot and height, aimed at what sits in the middle of the picture, with the lens that gives the same framing (the main camera of a phone is about 26 mm, its wide one 13 to 16 mm; use 26 when nothing says otherwise). Indoors the room must be deep enough to hold the camera. The frame here is ' + ratio + '; when the picture has another shape, keep its lens and match its centre.\n'
+      + '- Where these photo rules differ from RULES above, these win: there is no minimum number of objects, nobody has to move in the first second, and the camera goes where the photo was taken.\n'
+      + '- Begin the JSON with "seen": two or three plain sentences in ' + tongue + ' saying what place this is, how big, and what stands where. Write "name" in ' + tongue + ' too.\n\n';
+    if (current) prompt += 'CURRENT SCENE (built from these same photos; the note asks to correct or change it, so keep everything else as it is):\n' + JSON.stringify(current) + '\n\n';
+    return prompt + 'NOTE from the person (what happens in the shot, measurements, corrections):\n' + (note || '(none)') + '\n\nReply with only the complete scene JSON.';
+  };
+
+  /* Ask Claude for a scene, with photos to look at when there are any. */
+  S.generate = async (prompt, onText, signal, images) => {
     const sample = window.claude && window.claude.use ? await window.claude.use('sample') : null;
     if (!sample) throw { code: 'unavailable' };
-    const value = await sample.json(S.prompt(request, current), { modelTier: 'complex', cache: false, signal, onText });
+    const opts = { modelTier: 'complex', cache: false, signal, onText };
+    if (images && images.length) opts.images = images;
+    const value = await sample.json(prompt, opts);
     const scene = S.clean(value);
     if (!scene) throw { code: 'invalid_json' };
     return scene;
@@ -1753,9 +1965,21 @@ PV.DEFAULT_SCENE = {
 
   Object.assign(PV.strings, {
     ask: { pt: 'Descreva a cena ou o que mudar…', en: 'Describe the scene, or what to change…' },
-    askPaste: { pt: 'Cole aqui o JSON de uma cena…', en: 'Paste a scene JSON here…' },
-    askSite: { pt: 'Descreva a cena, ou cole o JSON que o Claude devolveu…', en: 'Describe the scene, or paste the JSON Claude gave you…' },
-    promptCopied: { pt: 'Prompt copiado. Cole no Claude e depois cole aqui o JSON que ele devolver.', en: 'Prompt copied. Paste it into Claude, then paste the JSON it returns here.' },
+    askAnswer: { pt: 'Cole aqui a resposta do Claude…', en: 'Paste Claude’s answer here…' },
+    askSite: { pt: 'Descreva a cena, ou cole a resposta do Claude…', en: 'Describe the scene, or paste Claude’s answer…' },
+    promptCopied: { pt: 'Prompt copiado. Cole no Claude e depois cole aqui a resposta.', en: 'Prompt copied. Paste it into Claude, then paste the answer here.' },
+    askPhotos: { pt: 'O que acontece? (opcional)', en: 'What happens? (optional)' },
+    photoAdd: { pt: 'Carregar fotos do lugar', en: 'Load photos of the place' },
+    photoCopied1: { pt: 'Prompt copiado. No Claude, cole o prompt e anexe a mesma foto. Depois cole aqui a resposta.', en: 'Prompt copied. In Claude, paste it and attach the same photo. Then paste the answer here.' },
+    photoCopiedN: { pt: 'Prompt copiado. No Claude, cole o prompt e anexe as mesmas {n} fotos. Depois cole aqui a resposta.', en: 'Prompt copied. In Claude, paste it and attach the same {n} photos. Then paste the answer here.' },
+    photoHint1: { pt: 'Envie para montar o lugar · toque na foto para ver por cima do 3D', en: 'Send to build the place · tap the photo to see it over the 3D' },
+    photoHintN: { pt: 'A primeira foto é o enquadramento inicial · toque em uma para ver por cima do 3D', en: 'The first photo is the starting frame · tap one to see it over the 3D' },
+    photoFormat: { pt: 'Formato ajustado para {r}, como a foto. Dá para trocar nos ajustes.', en: 'Format set to {r}, like the photo. You can change it in the settings.' },
+    photoBad: { pt: 'Não consegui abrir essa imagem.', en: 'That image could not be opened.' },
+    photoMax: { pt: 'Cabem até {n} fotos.', en: 'Up to {n} photos fit.' },
+    photoShow: { pt: 'Ver a foto por cima da cena', en: 'Show the photo over the scene' },
+    photoRemove: { pt: 'Remover a foto', en: 'Remove the photo' },
+    photoFirst: { pt: 'Enquadramento inicial', en: 'Starting frame' },
     promptFail: { pt: 'Não consegui copiar o prompt neste navegador.', en: 'The prompt could not be copied in this browser.' },
     gyroOn: { pt: 'Giroscópio ligado: mova o celular para apontar a câmera', en: 'Gyroscope on: move the phone to aim the camera' },
     gyroOff: { pt: 'Giroscópio desligado', en: 'Gyroscope off' },
@@ -1803,7 +2027,8 @@ PV.DEFAULT_SCENE = {
     play: '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M3.2 1.6v10.8L12.2 7z"/></svg>',
     pause: '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M2.8 1.8h3v10.4h-3zM8.2 1.8h3v10.4h-3z"/></svg>',
     stop: '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><rect x="2.5" y="2.5" width="9" height="9" rx="1.5"/></svg>',
-    up: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V2M2.5 6.5L7 2l4.5 4.5"/></svg>'
+    up: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V2M2.5 6.5L7 2l4.5 4.5"/></svg>',
+    x: '<svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M1 1l6 6M7 1L1 7"/></svg>'
   };
   U.icon = (name) => ICON[name];
 
@@ -1848,6 +2073,7 @@ PV.DEFAULT_SCENE = {
     el('home').setAttribute('aria-label', PV.lang === 'pt' ? 'Enquadrar o alvo' : 'Frame the target');
     el('opts').setAttribute('aria-label', PV.lang === 'pt' ? 'Ajustes' : 'Settings');
     el('ask-go').setAttribute('aria-label', PV.lang === 'pt' ? 'Montar a cena' : 'Build the scene');
+    el('ask-photo').setAttribute('aria-label', PV.t('photoAdd')); el('ask-photo').title = PV.t('photoAdd');
     el('lift-up').setAttribute('aria-label', PV.lang === 'pt' ? 'Subir a câmera' : 'Raise the camera');
     el('lift-down').setAttribute('aria-label', PV.lang === 'pt' ? 'Descer a câmera' : 'Lower the camera');
     el('time').setAttribute('aria-label', PV.lang === 'pt' ? 'Linha do tempo' : 'Timeline');
@@ -1864,7 +2090,7 @@ PV.DEFAULT_SCENE = {
   'use strict';
   const T = THREE, el = PV.el, M = PV.motion, C = PV.cam, W = PV.world, Mp = PV.map, X = PV.exporter, S = PV.scenes, U = PV.ui;
   const A = PV.app = { state: 'live', t: 0, playing: true, mode: 'free', railView: 'map', takes: 0, w: 0, h: 0, dpr: 1, rects: {}, blob: null, set: {}, custom: false, askChars: 0,
-    prefs: { ratio: '16:9', clay: false, shake: 0 } };
+    photos: [], ghost: -1, maxPhotos: 6, photoScene: false, prefs: { ratio: '16:9', clay: false, shake: 0 } };
   A.RATIOS = { '16:9': 16 / 9, '9:16': 9 / 16, '1:1': 1, '4:3': 4 / 3, '21:9': 21 / 9 };
   const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   const R = (r) => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) });
@@ -1880,11 +2106,13 @@ PV.DEFAULT_SCENE = {
     const a = C.aspect, fw = Math.min(w, h * a), fh = fw / a, narrow = w < 620;
     A.rects.full = { x: 0, y: 0, w, h };
     A.rects.frame = R({ x: (w - fw) / 2, y: (h - fh) / 2, w: fw, h: fh });
-    const s = PV.clamp(Math.min(w, h) * 0.26, 92, 170);
-    A.rects.mapInset = R({ x: 12, y: narrow ? 60 : h - s - 12, w: s, h: s });
+    const s = PV.clamp(Math.min(w, h) * 0.26, 92, 170), under = A.photos.length ? 122 : 60;
+    A.rects.mapInset = R({ x: 12, y: narrow ? under : h - s - 12, w: s, h: s });
     let cw = PV.clamp(w * 0.32, 150, 320), ch = cw / a;
     if (ch > h * 0.42) { ch = h * 0.42; cw = ch * a; }
-    A.rects.camInset = R({ x: 12, y: narrow ? 60 : h - ch - 12, w: cw, h: ch });
+    A.rects.camInset = R({ x: 12, y: narrow ? under : h - ch - 12, w: cw, h: ch });
+    const f = A.rects.frame, ghost = el('ghost').style;
+    ghost.left = f.x + 'px'; ghost.top = f.y + 'px'; ghost.width = f.w + 'px'; ghost.height = f.h + 'px';
   };
 
   /* ---------- drawing one frame of the interface ---------- */
@@ -1954,6 +2182,7 @@ PV.DEFAULT_SCENE = {
     el('play').disabled = el('time').disabled = st === 'rec' || st === 'count';
     el('tally').hidden = st !== 'rec'; el('count').hidden = st !== 'count'; el('veil').hidden = st !== 'export';
     el('lens').hidden = mapMain; el('home').hidden = A.mode === 'rail';
+    el('ghost').hidden = !(A.ghost >= 0 && live && !mapMain);
     const g = el('gyro'); g.hidden = !C.gyroAvailable() || mapMain || A.mode === 'rail'; g.setAttribute('aria-pressed', String(!!C.gyro));
     /* Keep the screen awake during a take: a phone held as a camera gets no taps. */
     if ((st === 'rec' || st === 'count') && !A.wake && navigator.wakeLock) navigator.wakeLock.request('screen').then((w) => { A.wake = w; }).catch(() => {});
@@ -2000,30 +2229,113 @@ PV.DEFAULT_SCENE = {
   };
   A.adopt = (scene) => { S.history.push(M.scene); if (S.history.length > 8) S.history.shift(); A.custom = true; A.loadScene(scene); S.remember(scene, PV.DEFAULT_ID); };
 
+  /* ---------- photos of the real place ---------- */
+  /* Every photo is redrawn small enough to travel (and upright, whatever the phone did) before anything else touches it. */
+  async function shrink(file) {
+    let src, w, h;
+    try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); w = src.width; h = src.height; }
+    catch (e) { const url = URL.createObjectURL(file); src = new Image(); src.src = url; try { await src.decode(); } finally { URL.revokeObjectURL(url); } w = src.naturalWidth; h = src.naturalHeight; }
+    if (!w || !h) throw new Error('empty image');
+    const k = Math.min(1, 1568 / Math.max(w, h)), c = document.createElement('canvas'), g = c.getContext('2d');
+    c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(src, 0, 0, c.width, c.height);
+    if (src.close) src.close();
+    const blob = await new Promise((done) => c.toBlob(done, 'image/jpeg', 0.86));
+    if (!blob) throw new Error('no image');
+    return { blob, url: URL.createObjectURL(blob), w: c.width, h: c.height };
+  }
+  A.addPhotos = async (files) => {
+    const list = Array.from(files || []).filter((f) => f && /^image\//.test(f.type || ''));
+    if (!list.length || A.state !== 'live') return;
+    let bad = 0, full = false;
+    const fresh = !A.photos.length;
+    for (const f of list) {
+      if (A.photos.length >= A.maxPhotos) { full = true; break; }
+      try { A.photos.push(await shrink(f)); } catch (e) { bad++; }
+    }
+    A.photoScene = A.awaiting = false; A.showPhotos();
+    if (!A.photos.length) { U.toast(PV.t('photoBad'), 4200); return; }
+    /* A still from an upright video cannot be matched inside a wide frame (or the other way round): the frame turns
+       to the shape of the first photo, once, and says so. */
+    const shape = A.photos[0].w / A.photos[0].h, turn = shape < 0.85 && C.aspect > 1.15 ? '9:16' : shape > 1.15 && C.aspect < 0.85 ? '16:9' : '';
+    if (fresh && turn) A.setRatio(turn);
+    if (bad || full) U.toast(PV.t(bad ? 'photoBad' : 'photoMax').replace('{n}', A.maxPhotos), 4200);
+    else if (fresh && turn) U.toast(PV.t('photoFormat').replace('{r}', turn), 5200);
+    U.hint(PV.t(A.photos.length > 1 ? 'photoHintN' : 'photoHint1'), 9000);
+  };
+  A.dropPhoto = (i) => {
+    const p = A.photos.splice(i, 1)[0]; if (!p) return;
+    URL.revokeObjectURL(p.url);
+    A.ghost = A.ghost === i ? -1 : A.ghost > i ? A.ghost - 1 : A.ghost; A.photoScene = A.awaiting = false; A.showPhotos();
+  };
+  /* The strip under the field. A tap on a photo lays it over the picture, half transparent, to compare with the 3D. */
+  A.showPhotos = () => {
+    const host = el('shots'); host.textContent = ''; host.hidden = !A.photos.length;
+    el('app').toggleAttribute('data-photos', A.photos.length > 0);
+    A.photos.forEach((p, i) => {
+      const cell = document.createElement('div'), pic = document.createElement('button'), img = document.createElement('img'), x = document.createElement('button');
+      cell.className = 'shot'; pic.className = 'pic'; x.className = 'x'; pic.type = x.type = 'button';
+      img.src = p.url; img.alt = ''; img.draggable = false;
+      pic.setAttribute('aria-pressed', String(i === A.ghost)); pic.setAttribute('aria-label', PV.t('photoShow')); if (!i && A.photos.length > 1) pic.title = PV.t('photoFirst');
+      pic.addEventListener('click', () => { A.ghost = A.ghost === i ? -1 : i; A.showPhotos(); });
+      x.innerHTML = U.icon('x'); x.setAttribute('aria-label', PV.t('photoRemove')); x.addEventListener('click', () => A.dropPhoto(i));
+      pic.appendChild(img); cell.append(pic, x); host.appendChild(cell);
+    });
+    const ghost = el('ghost');
+    if (A.ghost >= 0 && A.photos[A.ghost]) ghost.src = A.photos[A.ghost].url; else { A.ghost = -1; ghost.removeAttribute('src'); }
+    A.askState(); A.layout(); A.refresh();
+  };
+  A.askState = () => {
+    const input = el('ask-input');
+    input.placeholder = PV.t(A.awaiting ? 'askAnswer' : A.photos.length ? 'askPhotos' : A.canAsk ? 'ask' : 'askSite');
+    if (!A.asking) el('ask-go').disabled = !input.value.trim() && !A.photos.length;
+  };
+
+  /* A scene that just came in, typed by Claude here or pasted from a chat. What Claude says it saw is worth reading. */
+  A.arrive = (scene) => {
+    A.adopt(scene); A.photoScene = A.photos.length > 0; A.awaiting = false; el('ask-input').value = ''; A.askState(); U.hint('');
+    const seen = scene.seen ? (scene.seen.length > 260 ? scene.seen.slice(0, 257) + '…' : scene.seen) : '';
+    U.toast(seen || PV.t('sceneReady'), seen ? 9000 : 3200);
+  };
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; }
+    catch (e) { const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;left:-99px;top:0;width:1px;height:1px;opacity:0'; document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (err) { ok = false; } ta.remove(); return ok; }
+  }
+
   A.ask = async (text) => {
     if (A.asking) { A.asking.abort(); return; }
-    text = String(text || '').trim(); if (!text) return;
-    if (text[0] === '{') { const sc = S.clean(text); if (!sc) { U.toast(PV.t('eJson')); return; } A.adopt(sc); el('ask-input').value = ''; el('ask-go').disabled = true; U.toast(PV.t('sceneReady')); return; }
+    text = String(text || '').trim();
+    const n = A.photos.length;
+    if (!text && !n) return;
+    const pasted = text.indexOf('{') >= 0 ? S.extract(text) : null;
+    if (pasted) { A.arrive(pasted); return; }
+    if (S.looksLikeScene(text)) { U.toast(PV.t('eJson')); return; }
     const form = el('ask'), input = el('ask-input'), go = el('ask-go');
-    if (!A.canAsk) {
-      const prompt = S.prompt(text, M.scene);
-      let ok = false;
-      try { await navigator.clipboard.writeText(prompt); ok = true; }
-      catch (e) { const ta = document.createElement('textarea'); ta.value = prompt; ta.style.cssText = 'position:fixed;left:-99px;top:0;width:1px;height:1px;opacity:0'; document.body.appendChild(ta); ta.select(); try { ok = document.execCommand('copy'); } catch (err) { ok = false; } ta.remove(); }
-      U.toast(PV.t(ok ? 'promptCopied' : 'promptFail'), 7000);
+    const prompt = n ? S.photoPrompt(text, n, A.prefs.ratio, A.photoScene && text ? M.scene : null) : S.prompt(text, M.scene);
+    /* No way to reach Claude from here (the site), or no way to show it pictures: the prompt goes to the clipboard
+       and the person carries it, and the photos, to their own Claude. */
+    if (!A.canAsk || (n && !A.canSee)) {
+      const ok = await copyText(prompt);
+      /* The request now lives in the copied prompt; the field empties and waits for what Claude sends back. */
+      if (ok) { A.awaiting = true; input.value = ''; A.askState(); }
+      U.toast(ok ? PV.t(!n ? 'promptCopied' : n > 1 ? 'photoCopiedN' : 'photoCopied1').replace('{n}', n) : PV.t('promptFail'), n ? 10000 : 7000);
       return;
     }
     A.asking = new AbortController(); A.askChars = 0;
     form.classList.add('busy'); input.disabled = true; go.innerHTML = U.icon('stop'); go.disabled = false;
+    let retry = false;
     try {
-      const sc = await S.generate(text, M.scene, (u) => { A.askChars = u.text.length; }, A.asking.signal);
-      A.asking = null; A.adopt(sc); input.value = ''; U.hint(''); U.toast(PV.t('sceneReady'));
+      const sc = await S.generate(prompt, (u) => { A.askChars = u.text.length; }, A.asking.signal, A.photos.map((p) => p.blob));
+      A.asking = null; A.arrive(sc);
     } catch (e) {
       const c = e && e.code; U.hint('');
-      if (c !== 'cancelled') U.toast(PV.t(c === 'unavailable' ? 'eUnavailable' : (c === 'not_granted' || c === 'sampling_disabled') ? 'eDenied' : c === 'rate_limited' ? 'eRate' : (c === 'invalid_json' || c === 'refused' || c === 'empty_completion') ? 'eScene' : 'eOther'), 5600);
+      if (c === 'images_unavailable') { A.canSee = false; retry = true; }
+      else if (c !== 'cancelled') U.toast(PV.t(c === 'unavailable' ? 'eUnavailable' : (c === 'not_granted' || c === 'sampling_disabled') ? 'eDenied' : c === 'rate_limited' ? 'eRate' : c === 'image_rejected' ? 'photoBad' : (c === 'invalid_json' || c === 'refused' || c === 'empty_completion') ? 'eScene' : 'eOther'), 5600);
     } finally {
-      A.asking = null; form.classList.remove('busy'); input.disabled = false; go.innerHTML = U.icon('up'); go.disabled = !input.value.trim();
+      A.asking = null; form.classList.remove('busy'); input.disabled = false; go.innerHTML = U.icon('up'); A.askState();
     }
+    if (retry) A.ask(text);
   };
 
   /* ---------- record, review, save ---------- */
@@ -2063,6 +2375,7 @@ PV.DEFAULT_SCENE = {
   };
 
   A.savePrefs = () => PV.store.set('prefs', A.prefs);
+  A.setRatio = (v) => { A.prefs.ratio = v; A.blob = null; A.applyPrefs(); A.savePrefs(); A.layout(); A.refresh(); };
   A.applyPrefs = () => {
     C.aspect = A.RATIOS[A.prefs.ratio] || 16 / 9; C.shake = PV.num(A.prefs.shake, 0); W.clay = !!A.prefs.clay;
     el('opts-ratio').textContent = A.prefs.ratio;
@@ -2084,7 +2397,7 @@ PV.DEFAULT_SCENE = {
       if (C.move && C.move.name === v) { C.syncFree(); C.move = null; A.refresh(); return; }
       C.setMove(v, A.t); A.t = 0; A.playing = true; A.refresh(); U.hint('');
     }, 'chip');
-    A.set.ratio = U.seg(el('ratios'), Object.keys(A.RATIOS).map((v) => ({ value: v, label: v })), (v) => { A.prefs.ratio = v; A.blob = null; A.applyPrefs(); A.savePrefs(); A.layout(); A.refresh(); });
+    A.set.ratio = U.seg(el('ratios'), Object.keys(A.RATIOS).map((v) => ({ value: v, label: v })), A.setRatio);
     A.set.look = U.seg(el('looks'), [{ value: 'colour', label: PV.t('colour') }, { value: 'clay', label: PV.t('clay') }], (v) => { A.prefs.clay = v === 'clay'; A.blob = null; A.applyPrefs(); A.savePrefs(); A.loadScene(M.scene, true); });
     A.set.shake = U.seg(el('shakes'), [{ value: '0', label: PV.t('steady') }, { value: '0.5', label: PV.t('light') }, { value: '1', label: PV.t('strong') }], (v) => { A.prefs.shake = +v; A.applyPrefs(); A.savePrefs(); });
     A.set.aim = U.seg(el('aims'), [{ value: 'subject', label: PV.t('aimSubject') }, { value: 'forward', label: PV.t('aimForward') }], (v) => { C.railAim = v; A.set.aim(v); });
@@ -2139,25 +2452,47 @@ PV.DEFAULT_SCENE = {
 
     const input = el('ask-input'), go = el('ask-go');
     go.innerHTML = U.icon('up');
-    input.addEventListener('input', () => { go.disabled = !input.value.trim(); });
+    input.addEventListener('input', A.askState);
     el('ask').addEventListener('submit', (e) => { e.preventDefault(); A.ask(input.value); });
-    A.canAsk = !!(window.claude && window.claude.use);
-    input.placeholder = PV.t(A.canAsk ? 'ask' : 'askSite');
-    if (A.canAsk) window.claude.use('sample').then((s) => { if (!s) { A.canAsk = false; input.placeholder = PV.t('askSite'); } });
+    /* Inside Claude the page can ask for a scene itself, and show Claude the photos where that is allowed. */
+    A.canAsk = !!(window.claude && window.claude.use); A.canSee = false;
+    A.askState();
+    if (A.canAsk) window.claude.use('sample').then(async (s) => {
+      if (!s) { A.canAsk = false; A.askState(); return; }
+      const caps = s.limits ? await s.limits().catch(() => null) : null;
+      A.canSee = !!(caps && caps.images);
+      if (A.canSee) A.maxPhotos = PV.clamp(PV.num(caps.images.maxCount, 6), 1, 6);
+    });
+
+    /* Photos come in through the button, a paste (a screenshot is usually on the clipboard) or a drop on the page.
+       A pasted answer from Claude is taken straight away, wherever on the page it lands. */
+    const file = el('photo-file');
+    el('ask-photo').addEventListener('click', () => file.click());
+    file.addEventListener('change', () => { const picked = Array.from(file.files || []); file.value = ''; A.addPhotos(picked); });
+    document.addEventListener('paste', (e) => {
+      const cd = e.clipboardData; if (!cd || A.state !== 'live' || A.asking) return;
+      const pics = Array.from(cd.files || []).filter((f) => /^image\//.test(f.type || ''));
+      if (pics.length) { e.preventDefault(); A.addPhotos(pics); return; }
+      const text = cd.getData('text/plain') || '', scene = text.indexOf('{') >= 0 ? S.extract(text) : null;
+      if (scene) { e.preventDefault(); closeSheet(); A.arrive(scene); }
+    });
+    const app = el('app'), carriesFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+    app.addEventListener('dragover', (e) => { if (carriesFiles(e)) e.preventDefault(); });
+    app.addEventListener('drop', (e) => { if (!carriesFiles(e)) return; e.preventDefault(); A.addPhotos(e.dataTransfer.files); });
 
     el('scene-copy').addEventListener('click', async () => {
       const text = JSON.stringify(M.scene);
       try { await navigator.clipboard.writeText(text); U.toast(PV.t('copied')); }
       catch (e) { closeSheet(); input.value = text; input.focus(); input.select(); }
     });
-    el('scene-undo').addEventListener('click', () => { const prev = S.history.pop(); if (!prev) return; A.loadScene(prev); S.remember(prev, PV.DEFAULT_ID); closeSheet(); });
-    el('scene-reset').addEventListener('click', () => { S.history.push(M.scene); A.custom = false; S.forget(); A.loadScene(S.clean(JSON.parse(JSON.stringify(PV.DEFAULT_SCENE)))); closeSheet(); });
+    el('scene-undo').addEventListener('click', () => { const prev = S.history.pop(); if (!prev) return; A.photoScene = false; A.loadScene(prev); S.remember(prev, PV.DEFAULT_ID); closeSheet(); });
+    el('scene-reset').addEventListener('click', () => { S.history.push(M.scene); A.custom = false; A.photoScene = false; S.forget(); A.loadScene(S.clean(JSON.parse(JSON.stringify(PV.DEFAULT_SCENE)))); closeSheet(); });
   }
 
   function wireStage() {
     const stage = el('stage'), pts = new Map();
     let pinch = 0, centre = null, drawing = false;
-    const isControl = (t) => !!(t && t.closest && t.closest('button, input, form, select, #sheet, #stick, #lift, #veil'));
+    const isControl = (t) => !!(t && t.closest && t.closest('button, input, form, select, #sheet, #shots, #stick, #lift, #veil'));
     const local = (e) => { const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
     const two = () => { const [a, b] = [...pts.values()]; return { d: Math.hypot(a[0] - b[0], a[1] - b[1]), c: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; };
 
