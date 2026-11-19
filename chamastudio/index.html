@@ -77,7 +77,7 @@
   #tally i { width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: blink 1s steps(2, start) infinite; }
   @keyframes blink { to { visibility: hidden; } }
   #count { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: clamp(72px, 18vw, 150px); font-weight: 500; color: #fff; text-shadow: 0 2px 30px rgba(0, 0, 0, .45); pointer-events: none; }
-  #hint { position: absolute; left: 50%; bottom: 68px; transform: translateX(-50%); max-width: calc(100% - 24px); padding: 7px 13px; border-radius: 16px; font-size: 12.5px; color: var(--muted); text-align: center; transition: opacity .5s; pointer-events: none; }
+  #hint { position: absolute; left: 12px; right: 12px; bottom: 68px; margin-inline: auto; width: fit-content; max-width: calc(100% - 24px); padding: 7px 13px; border-radius: 16px; font-size: 12.5px; color: var(--muted); text-align: center; transition: opacity .5s; pointer-events: none; }
   #hint.off { opacity: 0; }
 
   #stick { position: absolute; left: 14px; bottom: 66px; width: 104px; height: 104px; border-radius: 50%; touch-action: none; }
@@ -125,7 +125,7 @@
   #time { grid-area: time; width: 100%; min-width: 0; }
   #clock { grid-area: clock; font-family: var(--mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   #clock b { color: var(--ink); font-weight: 500; }
-  #act { grid-area: act; display: flex; gap: 8px; }
+  #act { grid-area: act; display: flex; gap: 8px; justify-content: flex-end; }
   .big { height: 42px; padding: 0 18px; border-radius: 21px; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
   #rec { background: var(--rec); color: #fff; }
   #rec i { width: 10px; height: 10px; border-radius: 50%; background: #fff; }
@@ -134,7 +134,19 @@
   #redo { background: var(--panel); border: 1px solid var(--line); }
   input[type="range"] { accent-color: var(--ink); height: 24px; margin: 0; }
 
-  #toast { position: fixed; left: 50%; top: calc(74px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); max-width: min(440px, calc(100% - 32px)); padding: 10px 16px; border-radius: 14px; background: var(--ink); color: var(--panel); font-size: 13.5px; text-align: center; z-index: 5; }
+  /* ---------- credit and next step: one quiet line under the bar ---------- */
+  #foot { display: flex; align-items: center; gap: 14px; min-height: 30px; font-size: 12.5px; color: var(--muted); }
+  #brand { flex: none; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  #brand b, #brand a { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-weight: 600; text-decoration: none; }
+  #brand a:hover { text-decoration: underline; }
+  #brand svg, #brand img { height: 14px; width: auto; }
+  #pitch { flex: 1; min-width: 0; text-align: center; }
+  #tutorial { flex: none; margin-left: auto; height: 30px; padding: 0 14px; border-radius: 15px; display: inline-flex; align-items: center; background: var(--panel); border: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 500; text-decoration: none; }
+  #app[data-saved] #pitch { color: var(--ink); }
+  #app[data-saved] #tutorial { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+  @media (pointer: coarse) { #tutorial { height: 36px; border-radius: 18px; } #brand a { padding-block: 9px; } }
+
+  #toast { position: fixed; left: 16px; right: 16px; top: calc(74px + env(safe-area-inset-top, 0px)); margin-inline: auto; width: fit-content; max-width: min(440px, calc(100% - 32px)); padding: 10px 16px; border-radius: 14px; background: var(--ink); color: var(--panel); font-size: 13.5px; text-align: center; z-index: 5; }
 
   #app[data-state="count"] #top, #app[data-state="rec"] #top, #app[data-state="review"] #top, #app[data-state="export"] #top,
   #app[data-state="review"] #lens, #app[data-state="export"] #lens, #app[data-state="export"] #home, #app[data-state="review"] #home, #app[data-state="export"] #gyro, #app[data-state="review"] #gyro,
@@ -143,17 +155,22 @@
   #app[data-state="review"] #bar, #app[data-state="export"] #bar { grid-template-columns: auto minmax(60px, 1fr) auto auto; grid-template-areas: "play time clock act"; }
 
   #app[data-state="count"] #panel, #app[data-state="rec"] #panel { display: none; }
-  #app[data-state="count"] #modes, #app[data-state="rec"] #modes { opacity: 0.35; pointer-events: none; }
+  #app[data-state="count"] #modes, #app[data-state="rec"] #modes, #app[data-state="count"] #foot, #app[data-state="rec"] #foot { opacity: 0.35; pointer-events: none; }
 
   @media (max-width: 720px) {
     #bar { grid-template-columns: auto minmax(40px, 1fr) auto; grid-template-areas: "modes modes act" "play time clock"; }
     #modes { width: auto; }
+    #modes button { flex: 1 1 auto; padding: 0 8px; }
     #app[data-state="review"] #bar, #app[data-state="export"] #bar { grid-template-columns: auto minmax(40px, 1fr) auto; grid-template-areas: "play time clock" "act act act"; }
     #app[data-state="review"] #act > * { flex: 1; justify-content: center; }
     .big { padding: 0 14px; }
     #lens button { min-width: 32px; height: 34px; padding: 0 6px; }
     #railbox input[type="range"] { width: 76px; }
     #hint { bottom: 186px; }
+    /* Narrow screens: the credit while shooting, the next step once there is a take. */
+    #pitch { display: none; text-align: left; }
+    #app[data-state="review"] #pitch, #app[data-state="export"] #pitch { display: block; }
+    #app[data-state="review"] #brand, #app[data-state="export"] #brand { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
@@ -224,6 +241,11 @@
         <button id="save" class="big" type="button" hidden></button>
         <button id="rec" class="big" type="button"><i></i><span id="rec-text"></span></button>
       </div>
+    </div>
+    <div id="foot">
+      <span id="brand"></span>
+      <span id="pitch" data-t="pitch"></span>
+      <a id="tutorial" href="#" role="button"></a>
     </div>
   </div>
   <div id="toast" hidden role="status"></div>
@@ -301,6 +323,23 @@ window.PV = window.PV || {};
   };
 
   PV.el = (id) => document.getElementById(id);
+})(window.PV);
+</script>
+<script>
+/* Previs Studio — who made it and where the take goes next. A link left empty shows as plain text until it exists. */
+(function (PV) {
+  'use strict';
+  PV.BRAND = {
+    author: '@chamadegui',
+    authorUrl: 'https://www.instagram.com/chamadegui/',
+    partner: 'Higgsfield',
+    /* The creator's own tracked Higgsfield link. The campaign brief rules out the plain site address, so empty means no link. */
+    partnerUrl: '',
+    /* The official logo as inline SVG markup, supplied by the brand. Empty shows the name alone. */
+    partnerLogo: '',
+    /* The blog tutorial. Empty makes the button answer "coming soon". */
+    tutorialUrl: ''
+  };
 })(window.PV);
 </script>
 <script>
@@ -1743,6 +1782,10 @@ PV.DEFAULT_SCENE = {
     h0: { pt: 'Altura no início', en: 'Height at start' }, h1: { pt: 'no fim', en: 'at end' },
     aimSubject: { pt: 'Mira no alvo', en: 'Aim at target' }, aimForward: { pt: 'Mira à frente', en: 'Aim ahead' },
     rendering: { pt: 'Gerando o vídeo', en: 'Rendering the video' }, cancel: { pt: 'Cancelar', en: 'Cancel' },
+    pitch: { pt: 'Depois, leve para o Higgsfield e transforme em cinema.', en: 'Then take it to Higgsfield and turn it into cinema.' },
+    savedNext: { pt: 'Agora leve para o Higgsfield e transforme em cinema.', en: 'Now take it to Higgsfield and turn it into cinema.' },
+    tutorial: { pt: 'Tutorial', en: 'Tutorial' },
+    tutorialSoon: { pt: 'O tutorial está chegando. Volte em breve.', en: 'The tutorial is on its way. Check back soon.' },
     saved: { pt: 'Vídeo salvo', en: 'Video saved' }, declined: { pt: 'Não foi salvo. O vídeo continua pronto: toque em Salvar vídeo de novo.', en: 'Not saved. The video is still ready: press Save video again.' },
     exportFail: { pt: 'Este navegador não conseguiu gerar o vídeo.', en: 'This browser could not render the video.' },
     saveFail: { pt: 'Não foi possível salvar aqui.', en: 'Saving is not possible here.' },
@@ -1923,7 +1966,8 @@ PV.DEFAULT_SCENE = {
     el('scene-undo').hidden = !S.history.length; el('scene-reset').hidden = !A.custom;
     el('clock-end').textContent = PV.fmtTime(st === 'review' && C.take ? C.take.dur : M.duration);
   };
-  A.setState = (s) => { A.state = s; el('app').dataset.state = s; A.refresh(); };
+  /* "data-saved" marks a take whose video has been handed over: from then on the next step is what stands out. */
+  A.setState = (s) => { A.state = s; el('app').dataset.state = s; if (s === 'live') el('app').removeAttribute('data-saved'); A.refresh(); };
 
   A.setMode = (m) => {
     if (A.mode !== m) { C.syncFree(); if (m !== 'move') C.move = null; }
@@ -1948,7 +1992,7 @@ PV.DEFAULT_SCENE = {
       const cam = scene.camera;
       if (cam && Array.isArray(cam.pos) && Array.isArray(cam.look)) C.place(PV.vec3(cam.pos), PV.vec3(cam.look), PV.num(cam.lens, 35));
       else { C.focal = C.focalTarget = 35; C.frame(0); }
-      A.state = 'live'; el('app').dataset.state = 'live'; A.mode = C.mode = 'free';
+      A.state = 'live'; el('app').dataset.state = 'live'; el('app').removeAttribute('data-saved'); A.mode = C.mode = 'free';
     }
     A.fillTargets();
     if (A.rects.full) Mp.fit(A.rects.full, true);
@@ -2014,7 +2058,7 @@ PV.DEFAULT_SCENE = {
       catch (e) { A.setState('review'); A.layout(); if (!e || e.code !== 'cancelled') U.toast(PV.t('exportFail'), 5200); return; }
       A.setState('review'); A.layout();
     }
-    try { await X.save(A.blob.blob, slug(M.scene.name) + '-take' + A.takes + '.' + A.blob.ext); U.toast(PV.t('saved') + ' · ' + A.blob.w + '×' + A.blob.h + ' · ' + A.blob.ext.toUpperCase()); }
+    try { await X.save(A.blob.blob, slug(M.scene.name) + '-take' + A.takes + '.' + A.blob.ext); el('app').setAttribute('data-saved', ''); U.toast(PV.t('saved') + ' · ' + A.blob.w + '×' + A.blob.h + ' · ' + A.blob.ext.toUpperCase() + '. ' + PV.t('savedNext'), 6500); }
     catch (e) { U.toast(PV.t(e && e.code === 'declined' ? 'declined' : 'saveFail'), 5600); }
   };
 
@@ -2051,6 +2095,19 @@ PV.DEFAULT_SCENE = {
       if (ok) { if (C.move) C.move = null; A.setMode('free'); U.toast(PV.t('gyroOn'), 4200); } else U.toast(PV.t('noGyro'), 4200);
       A.refresh();
     });
+  }
+
+  /* The line under the bar: who made this, where the take goes next, and the way to the tutorial. */
+  function buildBrand() {
+    const B = PV.BRAND, host = el('brand');
+    const name = (text, url) => { const n = document.createElement(url ? 'a' : 'b'); n.textContent = text; if (url) { n.href = url; n.target = '_blank'; n.rel = 'noopener'; } return n; };
+    const partner = name(B.partner, B.partnerUrl), plus = document.createElement('span');
+    if (B.partnerLogo) partner.insertAdjacentHTML('afterbegin', B.partnerLogo);
+    plus.textContent = '+';
+    host.append(partner, plus, name(B.author, B.authorUrl));
+    const tut = el('tutorial'); tut.textContent = PV.t('tutorial');
+    if (B.tutorialUrl) { tut.href = B.tutorialUrl; tut.target = '_blank'; tut.rel = 'noopener'; tut.removeAttribute('role'); }
+    else tut.addEventListener('click', (e) => { e.preventDefault(); U.toast(PV.t('tutorialSoon'), 4200); });
   }
 
   const closeSheet = () => { el('sheet').hidden = true; el('opts').setAttribute('aria-expanded', 'false'); };
@@ -2183,7 +2240,7 @@ PV.DEFAULT_SCENE = {
     A.g = el('ink').getContext('2d'); A.theme = U.theme();
     const saved = PV.store.get('prefs'); if (saved && typeof saved === 'object') Object.assign(A.prefs, saved);
     if (!A.RATIOS[A.prefs.ratio]) A.prefs.ratio = '16:9';
-    U.labels(); buildControls(); wireButtons(); wireStage(); wireKeys();
+    U.labels(); buildControls(); buildBrand(); wireButtons(); wireStage(); wireKeys();
     A.applyPrefs(); A.layout();
     const kept = S.recall(PV.DEFAULT_ID);
     A.custom = !!kept;
